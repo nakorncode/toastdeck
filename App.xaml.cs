@@ -11,6 +11,7 @@ public partial class App : System.Windows.Application
     private NotificationStore? store;
     private ToastOverlayService? overlayService;
     private WindowsNotificationPlatform? notificationPlatform;
+    private AppSettings? settings;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -21,10 +22,22 @@ public partial class App : System.Windows.Application
         notificationPlatform = new WindowsNotificationPlatform();
         var platformResult = notificationPlatform.Initialize();
 
+        var startupRegistrationService = new StartupRegistrationService();
+        var settingsService = new AppSettingsService(startupRegistrationService);
+        settings = settingsService.Load();
+
         store = new NotificationStore();
-        overlayService = new ToastOverlayService(store);
-        mainWindow = new MainWindow(store, notificationPlatform, platformResult);
-        mainWindow.Show();
+        overlayService = new ToastOverlayService(store, settings);
+        mainWindow = new MainWindow(store, settings, notificationPlatform, platformResult);
+
+        if (settings.StartMinimized)
+        {
+            mainWindow.Hide();
+        }
+        else
+        {
+            mainWindow.Show();
+        }
 
         trayIcon = new Forms.NotifyIcon
         {

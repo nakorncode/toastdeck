@@ -1,4 +1,5 @@
 using System.Windows;
+using System.ComponentModel;
 
 namespace ToastDeckA;
 
@@ -7,21 +8,27 @@ public partial class MainWindow : Window, IDisposable
     private readonly WindowsNotificationPlatform notificationPlatform;
     private readonly WindowsNotificationListener windowsNotificationListener;
     private readonly WindowsNotificationPlatformResult platformResult;
+    private readonly AppSettings settings;
+    private readonly NotificationStore store;
     private bool allowClose;
     private bool isDisposed;
 
     public MainWindow(
         NotificationStore store,
+        AppSettings settings,
         WindowsNotificationPlatform notificationPlatform,
         WindowsNotificationPlatformResult platformResult)
     {
+        this.store = store;
+        this.settings = settings;
         this.notificationPlatform = notificationPlatform;
         this.platformResult = platformResult;
         windowsNotificationListener = new WindowsNotificationListener(store, Dispatcher);
 
         InitializeComponent();
-        DataContext = store;
+        DataContext = new MainViewModel(store, settings);
         Loaded += MainWindow_Loaded;
+        settings.PropertyChanged += Settings_PropertyChanged;
     }
 
     protected override void OnStateChanged(EventArgs e)
@@ -59,6 +66,7 @@ public partial class MainWindow : Window, IDisposable
         }
 
         isDisposed = true;
+        settings.PropertyChanged -= Settings_PropertyChanged;
         windowsNotificationListener.Dispose();
     }
 
@@ -70,19 +78,33 @@ public partial class MainWindow : Window, IDisposable
 
     private async void EnableWindowsListenerButton_Click(object sender, RoutedEventArgs e)
     {
+        if (!settings.EnableWindowsCapture)
+        {
+            settings.EnableWindowsCapture = true;
+            return;
+        }
+
         await StartWindowsCaptureAsync(forcePrompt: true);
     }
 
     private void ClearNotificationsButton_Click(object sender, RoutedEventArgs e)
     {
-        ((NotificationStore)DataContext).Clear();
+        store.Clear();
         ListenerStatusText.Text = $"{platformResult.Message} Cleared ToastDeck's visible list. Windows capture baseline is preserved.";
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
     {
         Loaded -= MainWindow_Loaded;
-        await StartWindowsCaptureAsync(forcePrompt: false);
+        if (settings.EnableWindowsCapture)
+        {
+            await StartWindowsCaptureAsync(forcePrompt: false);
+        }
+        else
+        {
+            ListenerStatusText.Text = $"{platformResult.Message} Windows capture is disabled in Settings.";
+            EnableWindowsListenerButton.IsEnabled = true;
+        }
     }
 
     private async Task StartWindowsCaptureAsync(bool forcePrompt)
@@ -99,5 +121,23 @@ public partial class MainWindow : Window, IDisposable
 
         ListenerStatusText.Text = $"{platformResult.Message} {result.Message}";
         EnableWindowsListenerButton.IsEnabled = !result.IsEnabled;
+    }
+
+    private async void Settings_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (isDisposed || e.PropertyName != nameof(AppSettings.EnableWindowsCapture))
+        {
+            return;
+        }
+
+        if (settings.EnableWindowsCapture)
+        {
+            await StartWindowsCaptureAsync(forcePrompt: false);
+            return;
+        }
+
+        windowsNotificationListener.Stop();
+        ListenerStatusText.Text = $"{platformResult.Message} Windows capture is disabled in Settings.";
+        EnableWindowsListenerButton.IsEnabled = true;
     }
 }

@@ -15,6 +15,7 @@ public sealed class WindowsNotificationListener : IDisposable
     private bool isDisposed;
 
     public string LastStatusMessage { get; private set; } = "Not started.";
+    public bool IsEnabled { get; private set; }
 
     public WindowsNotificationListener(NotificationStore store, Dispatcher dispatcher)
     {
@@ -86,6 +87,14 @@ public sealed class WindowsNotificationListener : IDisposable
         syncTimer.Stop();
 
         listener = null;
+    }
+
+    public void Stop()
+    {
+        syncTimer.Stop();
+        listener = null;
+        IsEnabled = false;
+        LastStatusMessage = "Windows notification capture is disabled.";
     }
 
     private async Task SeedExistingNotificationsAsync()
@@ -170,6 +179,7 @@ public sealed class WindowsNotificationListener : IDisposable
 
     private WindowsNotificationListenerResult SetStatus(bool isEnabled, string message)
     {
+        IsEnabled = isEnabled;
         LastStatusMessage = message;
         return new WindowsNotificationListenerResult(isEnabled, message);
     }

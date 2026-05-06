@@ -10,20 +10,24 @@ public sealed class ToastOverlayService : IDisposable
     private const double StackScaleStep = 0.04;
     private const double StackOpacityStep = 0.16;
     private readonly NotificationStore store;
+    private readonly AppSettings settings;
     private readonly Dictionary<Guid, ToastWindow> windows = [];
     private readonly List<Guid> displayOrder = [];
 
-    public ToastOverlayService(NotificationStore store)
+    public ToastOverlayService(NotificationStore store, AppSettings settings)
     {
         this.store = store;
+        this.settings = settings;
         store.NotificationAdded += OnNotificationAdded;
         store.NotificationDismissed += OnNotificationDismissed;
+        settings.PropertyChanged += OnSettingsChanged;
     }
 
     public void Dispose()
     {
         store.NotificationAdded -= OnNotificationAdded;
         store.NotificationDismissed -= OnNotificationDismissed;
+        settings.PropertyChanged -= OnSettingsChanged;
 
         foreach (var window in windows.Values.ToArray())
         {
@@ -35,11 +39,38 @@ public sealed class ToastOverlayService : IDisposable
 
     private void OnNotificationAdded(object? sender, AppNotification notification)
     {
+        if (!settings.EnableToastOverlay || settings.DoNotDisturb)
+        {
+            return;
+        }
+
         var window = new ToastWindow(notification, () => store.Dismiss(notification.Id));
         windows[notification.Id] = window;
         displayOrder.Insert(0, notification.Id);
         window.Show();
         ArrangeWindows();
+    }
+
+    private void OnSettingsChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(AppSettings.EnableToastOverlay) or nameof(AppSettings.DoNotDisturb))
+        {
+            if (!settings.EnableToastOverlay || settings.DoNotDisturb)
+            {
+                CloseAllWindows();
+            }
+        }
+    }
+
+    private void CloseAllWindows()
+    {
+        foreach (var window in windows.Values.ToArray())
+        {
+            window.Close();
+        }
+
+        windows.Clear();
+        displayOrder.Clear();
     }
 
     private void OnNotificationDismissed(object? sender, Guid id)
