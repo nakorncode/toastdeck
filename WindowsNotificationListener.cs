@@ -75,11 +75,6 @@ public sealed class WindowsNotificationListener : IDisposable
             "Windows notification capture is enabled. New Windows toasts will be mirrored into this demo list.");
     }
 
-    public void ClearCapturedState()
-    {
-        capturedNotificationIds.Clear();
-    }
-
     public void Dispose()
     {
         if (isDisposed)

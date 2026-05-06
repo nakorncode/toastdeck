@@ -75,8 +75,8 @@ public partial class MainWindow : Window, IDisposable
 
     private void ClearNotificationsButton_Click(object sender, RoutedEventArgs e)
     {
-        windowsNotificationListener.ClearCapturedState();
         ((NotificationStore)DataContext).Clear();
+        ListenerStatusText.Text = $"{platformResult.Message} Cleared ToastDeck's visible list. Windows capture baseline is preserved.";
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
