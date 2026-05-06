@@ -3,7 +3,7 @@ using System.Windows.Threading;
 using Windows.UI.Notifications;
 using Windows.UI.Notifications.Management;
 
-namespace ToastDeckA;
+namespace ToastDesk;
 
 public sealed class WindowsNotificationListener : IDisposable
 {

@@ -2,19 +2,22 @@ using System.ComponentModel;
 using System.IO;
 using System.Text.Json;
 
-namespace ToastDeckA;
+namespace ToastDesk;
 
 public sealed class AppSettingsService
 {
     private readonly string settingsPath;
+    private readonly string legacySettingsPath;
     private readonly StartupRegistrationService startupRegistrationService;
     private bool isSaving;
 
     public AppSettingsService(StartupRegistrationService startupRegistrationService)
     {
         this.startupRegistrationService = startupRegistrationService;
-        var settingsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ToastDeck-A");
+        var settingsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ToastDesk");
+        var legacySettingsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ToastDeck-A");
         settingsPath = Path.Combine(settingsDir, "settings.json");
+        legacySettingsPath = Path.Combine(legacySettingsDir, "settings.json");
     }
 
     public AppSettings Load()
@@ -40,12 +43,14 @@ public sealed class AppSettingsService
     {
         try
         {
-            if (!File.Exists(settingsPath))
+            var path = File.Exists(settingsPath) ? settingsPath : legacySettingsPath;
+
+            if (!File.Exists(path))
             {
                 return new AppSettings();
             }
 
-            return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(settingsPath)) ?? new AppSettings();
+            return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path)) ?? new AppSettings();
         }
         catch (JsonException)
         {

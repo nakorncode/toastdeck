@@ -1,7 +1,7 @@
-namespace ToastDeckA;
+namespace ToastDesk;
 
 public enum NotificationOrigin
 {
-    AppDemo,
+    ToastDesk,
     Windows
 }

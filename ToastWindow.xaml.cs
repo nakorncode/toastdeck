@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Animation;
 
-namespace ToastDeckA;
+namespace ToastDesk;
 
 public partial class ToastWindow : Window
 {

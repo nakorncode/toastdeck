@@ -7,13 +7,13 @@ $ErrorActionPreference = "Stop"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptDir
-$projectPath = Join-Path $repoRoot "ToastDeckA.csproj"
+$projectPath = Join-Path $repoRoot "ToastDesk.csproj"
 
-$runningApps = Get-Process -Name "ToastDeckA" -ErrorAction SilentlyContinue
+$runningApps = Get-Process -Name "ToastDesk" -ErrorAction SilentlyContinue
 if ($runningApps) {
-    Write-Host "Stopping running ToastDeck-A process..."
+    Write-Host "Stopping running ToastDesk process..."
     $runningApps | Stop-Process -Force
 }
 
-Write-Host "Building ToastDeck-A ($Configuration)..."
+Write-Host "Building ToastDesk ($Configuration)..."
 dotnet build $projectPath --configuration $Configuration

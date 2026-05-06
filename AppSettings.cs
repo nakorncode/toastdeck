@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace ToastDeckA;
+namespace ToastDesk;
 
 public sealed class AppSettings : INotifyPropertyChanged
 {

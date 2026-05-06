@@ -1,10 +1,10 @@
-<Window x:Class="ToastDeckA.MainWindow"
+<Window x:Class="ToastDesk.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="ToastDeck-A Demo"
+        Title="ToastDesk"
         Height="620"
         Width="980"
         MinHeight="560"
@@ -38,7 +38,7 @@
             </StackPanel>
 
             <StackPanel>
-                <TextBlock Text="ToastDeck-A Demo"
+                <TextBlock Text="ToastDesk"
                            FontSize="30"
                            FontWeight="SemiBold"
                            Foreground="{StaticResource TextBrush}" />
@@ -174,11 +174,11 @@
                                        FontSize="18"
                                        FontWeight="SemiBold"
                                        Foreground="{StaticResource TextBrush}" />
-                            <TextBlock Text="Control how ToastDeck-A behaves when Windows or the app starts."
+                            <TextBlock Text="Control how ToastDesk behaves when Windows or the app starts."
                                        Margin="0,6,0,16"
                                        Foreground="{StaticResource TextMutedBrush}"
                                        TextWrapping="Wrap" />
-                            <CheckBox Content="Start ToastDeck-A when I sign in to Windows"
+                            <CheckBox Content="Start ToastDesk when I sign in to Windows"
                                       IsChecked="{Binding Settings.StartWithWindows, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             <CheckBox Content="Start minimized to the tray"
                                       IsChecked="{Binding Settings.StartMinimized, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
@@ -189,13 +189,13 @@
                                        FontSize="18"
                                        FontWeight="SemiBold"
                                        Foreground="{StaticResource TextBrush}" />
-                            <TextBlock Text="Capture Windows notifications into the activity list and control whether ToastDeck-A shows its own overlay cards."
+                            <TextBlock Text="Capture Windows notifications into the activity list and control whether ToastDesk shows its own overlay cards."
                                        Margin="0,6,0,16"
                                        Foreground="{StaticResource TextMutedBrush}"
                                        TextWrapping="Wrap" />
                             <CheckBox Content="Enable Windows notification capture"
                                       IsChecked="{Binding Settings.EnableWindowsCapture, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                            <CheckBox Content="Show ToastDeck overlay cards"
+                            <CheckBox Content="Show ToastDesk overlay cards"
                                       IsChecked="{Binding Settings.EnableToastOverlay, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                             <CheckBox Content="Do not disturb: keep capturing but hide overlay cards"
                                       IsChecked="{Binding Settings.DoNotDisturb, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />

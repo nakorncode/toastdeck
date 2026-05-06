@@ -1,4 +1,4 @@
-namespace ToastDeckA;
+namespace ToastDesk;
 
 public sealed class AppNotification
 {

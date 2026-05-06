@@ -1,7 +1,7 @@
 using System.Windows;
 using System.ComponentModel;
 
-namespace ToastDeckA;
+namespace ToastDesk;
 
 public partial class MainWindow : Window, IDisposable
 {
@@ -90,7 +90,7 @@ public partial class MainWindow : Window, IDisposable
     private void ClearNotificationsButton_Click(object sender, RoutedEventArgs e)
     {
         store.Clear();
-        ListenerStatusText.Text = $"{platformResult.Message} Cleared ToastDeck's visible list. Windows capture baseline is preserved.";
+        ListenerStatusText.Text = $"{platformResult.Message} Cleared ToastDesk's visible list. Windows capture baseline is preserved.";
     }
 
     private async void MainWindow_Loaded(object sender, RoutedEventArgs e)

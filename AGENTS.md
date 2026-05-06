@@ -1,8 +1,10 @@
-# ToastDeck-A Agent Instructions
+# ToastDesk Agent Instructions
 
 ## Product Direction
 
 - This project is for a Windows 11 desktop app that shows persistent toast-style notifications on screen.
+- The product name is `ToastDesk`. Do not use old prototype names such as `ToastDeck-A` in user-facing UI, executable/project identity, AppUserModelID, shortcuts, settings paths, or startup registration.
+- Avoid demo-only wording in user-facing UI unless a screen is explicitly a development/test tool.
 - The core UX goal is to avoid missed notifications caused by the normal Windows Notification Center flow.
 - Toast cards should appear in an obvious on-screen location, stay visible above normal windows, and remain until the user takes an explicit action on that card.
 - Treat this as a custom always-on-top notification surface, not as a thin wrapper around the Windows notification center.
@@ -17,8 +19,9 @@
 ## Current Technical Decisions
 
 - Use C#/.NET WPF for the first prototype because Windows desktop APIs, always-on-top windows, tray behavior, focus handling, and installer paths are more mature there.
+- Treat upcoming work as production hardening: stable app identity, predictable settings migration, graceful startup/shutdown, installer readiness, and fewer demo-only labels.
 - Rust is still a possible future option for lower-level components, but do not switch the main app stack until the WPF prototype proves or fails the core Windows behavior.
-- The previous ToastDeck attempt had runtime and reliability problems, so keep this project incremental and validate platform behavior in small slices.
+- The previous ToastDesk attempt had runtime and reliability problems, so keep this project incremental and validate platform behavior in small slices.
 - For unpackaged WPF desktop notifications, register an AppUserModelID Start Menu shortcut before sending Windows toasts.
 - Prefer polling `UserNotificationListener.GetNotificationsAsync` for this prototype; subscribing to `NotificationChanged` can fail in this unpackaged desktop process.
 - The app should eventually ship as an easy Windows installable artifact, preferably `.exe` and/or `.msi`.

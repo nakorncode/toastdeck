@@ -2,7 +2,7 @@ using System.Drawing;
 using System.Windows;
 using Forms = System.Windows.Forms;
 
-namespace ToastDeckA;
+namespace ToastDesk;
 
 public partial class App : System.Windows.Application
 {
@@ -42,7 +42,7 @@ public partial class App : System.Windows.Application
         trayIcon = new Forms.NotifyIcon
         {
             Icon = SystemIcons.Application,
-            Text = "ToastDeck-A",
+            Text = "ToastDesk",
             Visible = true,
             ContextMenuStrip = BuildTrayMenu()
         };

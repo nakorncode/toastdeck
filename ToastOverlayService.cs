@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace ToastDeckA;
+namespace ToastDesk;
 
 public sealed class ToastOverlayService : IDisposable
 {

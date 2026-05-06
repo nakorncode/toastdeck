@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace ToastDeckA;
+namespace ToastDesk;
 
 internal static class NativeMethods
 {

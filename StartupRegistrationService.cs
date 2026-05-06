@@ -1,16 +1,17 @@
 using Microsoft.Win32;
 
-namespace ToastDeckA;
+namespace ToastDesk;
 
 public sealed class StartupRegistrationService
 {
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string ValueName = "ToastDeck-A";
+    private const string ValueName = "ToastDesk";
+    private const string LegacyValueName = "ToastDeck-A";
 
     public bool IsRegistered()
     {
         using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: false);
-        return key?.GetValue(ValueName) is string value && value.Contains("ToastDeckA.exe", StringComparison.OrdinalIgnoreCase);
+        return key?.GetValue(ValueName) is string value && value.Contains("ToastDesk.exe", StringComparison.OrdinalIgnoreCase);
     }
 
     public void SetRegistered(bool isRegistered)
@@ -21,6 +22,7 @@ public sealed class StartupRegistrationService
         if (!isRegistered)
         {
             key.DeleteValue(ValueName, throwOnMissingValue: false);
+            key.DeleteValue(LegacyValueName, throwOnMissingValue: false);
             return;
         }
 
@@ -31,5 +33,6 @@ public sealed class StartupRegistrationService
         }
 
         key.SetValue(ValueName, $"\"{executablePath}\"");
+        key.DeleteValue(LegacyValueName, throwOnMissingValue: false);
     }
 }

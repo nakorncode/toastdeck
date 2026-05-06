@@ -5,18 +5,20 @@ using System.Text;
 using Windows.Data.Xml.Dom;
 using Windows.UI.Notifications;
 
-namespace ToastDeckA;
+namespace ToastDesk;
 
 public sealed class WindowsNotificationPlatform
 {
-    public const string AppId = "NakornCode.ToastDeckA";
+    public const string AppId = "NakornCode.ToastDesk";
 
     private readonly string shortcutPath;
+    private readonly string legacyShortcutPath;
 
     public WindowsNotificationPlatform()
     {
         var programsPath = Environment.GetFolderPath(Environment.SpecialFolder.StartMenu);
-        shortcutPath = Path.Combine(programsPath, "Programs", "ToastDeck-A.lnk");
+        shortcutPath = Path.Combine(programsPath, "Programs", "ToastDesk.lnk");
+        legacyShortcutPath = Path.Combine(programsPath, "Programs", "ToastDeck-A.lnk");
     }
 
     public WindowsNotificationPlatformResult Initialize()
@@ -42,7 +44,7 @@ public sealed class WindowsNotificationPlatform
 
     private static void WriteDiagnosticLog(Exception exception)
     {
-        var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ToastDeck-A");
+        var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ToastDesk");
         Directory.CreateDirectory(logDir);
 
         File.WriteAllText(
@@ -59,12 +61,12 @@ public sealed class WindowsNotificationPlatform
                 <toast launch="action=test">
                   <visual>
                     <binding template="ToastGeneric">
-                      <text>ToastDeck-A test</text>
+                      <text>ToastDesk test</text>
                       <text>Sent to Windows Notification Center at {DateTimeOffset.Now:HH:mm:ss}.</text>
                     </binding>
                   </visual>
                   <actions>
-                    <action content="Open ToastDeck-A" arguments="action=open" activationType="foreground" />
+                    <action content="Open ToastDesk" arguments="action=open" activationType="foreground" />
                   </actions>
                 </toast>
                 """);
@@ -99,7 +101,7 @@ public sealed class WindowsNotificationPlatform
         shellLink.SetPath(executablePath);
         shellLink.SetArguments("");
         shellLink.SetWorkingDirectory(Path.GetDirectoryName(executablePath));
-        shellLink.SetDescription("ToastDeck-A notification demo");
+        shellLink.SetDescription("ToastDesk notification manager");
 
         var appIdKey = PropertyKeys.AppUserModelId;
         var appIdValue = PropVariant.FromString(AppId);
@@ -110,6 +112,15 @@ public sealed class WindowsNotificationPlatform
 
         var persistFile = (IPersistFile)shellLink;
         persistFile.Save(shortcutPath, true);
+        DeleteLegacyShortcut();
+    }
+
+    private void DeleteLegacyShortcut()
+    {
+        if (File.Exists(legacyShortcutPath))
+        {
+            File.Delete(legacyShortcutPath);
+        }
     }
 
     private static readonly Guid ShellLinkClsid = new("00021401-0000-0000-C000-000000000046");

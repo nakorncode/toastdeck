@@ -1,5 +1,5 @@
 using System.Collections.ObjectModel;
-namespace ToastDeckA;
+namespace ToastDesk;
 
 public sealed class NotificationStore
 {
