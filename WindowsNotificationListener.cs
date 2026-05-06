@@ -62,7 +62,7 @@ public sealed class WindowsNotificationListener : IDisposable
                 $"Windows notification capture is not allowed. Status: {accessStatus}. Use Retry Windows Capture, or allow notification access in Windows Settings if denied.");
         }
 
-        await CaptureCurrentNotificationsAsync();
+        await SeedExistingNotificationsAsync();
         syncTimer.Start();
 
         if (isDisposed)
@@ -93,6 +93,20 @@ public sealed class WindowsNotificationListener : IDisposable
         listener = null;
     }
 
+    private async Task SeedExistingNotificationsAsync()
+    {
+        if (isDisposed || listener is null)
+        {
+            return;
+        }
+
+        var notifications = await GetCurrentNotificationsAsync();
+        foreach (var notification in notifications)
+        {
+            capturedNotificationIds.Add(notification.Id);
+        }
+    }
+
     private async Task CaptureCurrentNotificationsAsync()
     {
         if (isDisposed || listener is null)
@@ -100,20 +114,7 @@ public sealed class WindowsNotificationListener : IDisposable
             return;
         }
 
-        IReadOnlyList<UserNotification> notifications;
-
-        try
-        {
-            notifications = await listener.GetNotificationsAsync(NotificationKinds.Toast);
-        }
-        catch (COMException)
-        {
-            return;
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return;
-        }
+        var notifications = await GetCurrentNotificationsAsync();
 
         foreach (var notification in notifications)
         {
@@ -135,6 +136,27 @@ public sealed class WindowsNotificationListener : IDisposable
                     store.Add(title, message, NotificationOrigin.Windows);
                 }
             });
+        }
+    }
+
+    private async Task<IReadOnlyList<UserNotification>> GetCurrentNotificationsAsync()
+    {
+        if (listener is null)
+        {
+            return [];
+        }
+
+        try
+        {
+            return await listener.GetNotificationsAsync(NotificationKinds.Toast);
+        }
+        catch (COMException)
+        {
+            return [];
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return [];
         }
     }
 
