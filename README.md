@@ -1,6 +1,6 @@
 # ToastDesk
 
-Persistent Windows notifications you cannot miss.
+Windows notifications that stay visible until you act.
 
 ToastDesk is a Windows 11 desktop app that mirrors Windows notifications into persistent, always-on-top toast cards. It keeps important alerts visible until you open or dismiss them.
 
@@ -8,17 +8,20 @@ ToastDesk is a Windows 11 desktop app that mirrors Windows notifications into pe
 
 ## Download
 
-Download the latest Windows build from:
+Download the latest Windows installer:
 
-[ToastDesk Releases](https://github.com/nakorncode/toastdeck/releases/latest)
+- [ToastDesk-Setup-win-x64.exe](https://github.com/nakorncode/toastdeck/releases/latest/download/ToastDesk-Setup-win-x64.exe) - recommended installer
+- [ToastDesk-Setup-win-x64.msi](https://github.com/nakorncode/toastdeck/releases/latest/download/ToastDesk-Setup-win-x64.msi) - MSI package for Windows deployment
+- [ToastDesk-Portable-win-x64.zip](https://github.com/nakorncode/toastdeck/releases/latest/download/ToastDesk-Portable-win-x64.zip) - portable self-contained build
+- [SHA256 checksums](https://github.com/nakorncode/toastdeck/releases/latest/download/ToastDesk-SHA256SUMS.txt)
 
-Use `ToastDesk-win-x64.zip`, extract it, then run `ToastDesk.exe`.
+All release builds are self-contained. No separate .NET runtime install is required.
 
-ToastDesk is currently distributed as a self-contained Windows x64 ZIP package. No separate .NET runtime install is required.
+If Windows SmartScreen warns about an unknown publisher, choose **More info** then **Run anyway**. Code signing is planned after the app identity and installer flow stabilize.
 
 ## Status
 
-ToastDesk is early public-preview software. Core notification capture, persistent overlay cards, tray behavior, settings, startup registration, notification actions, and notification sounds are implemented. Installer/signing work is still in progress.
+ToastDesk is early public-preview software. Core notification capture, persistent overlay cards, tray behavior, settings, startup registration, notification actions, notification sounds, and automated Windows release packaging are implemented. Code signing is still in progress.
 
 ## Features
 
@@ -42,7 +45,12 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-The GitHub Actions release workflow will build `ToastDesk-win-x64.zip` and attach it to the release.
+The GitHub Actions release workflow builds and uploads:
+
+- `ToastDesk-Setup-win-x64.exe`
+- `ToastDesk-Setup-win-x64.msi`
+- `ToastDesk-Portable-win-x64.zip`
+- `ToastDesk-SHA256SUMS.txt`
 
 You can also create the package locally:
 
@@ -50,7 +58,7 @@ You can also create the package locally:
 powershell -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1
 ```
 
-The local package is written to `artifacts/release/ToastDesk-win-x64.zip`.
+The local packages are written to `artifacts/release`.
 
 ## Requirements
 
@@ -70,19 +78,22 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run-dev.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\run-build.ps1
 ```
 
-## Publish Release Package Locally
+## Publish Release Assets Locally
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1
 ```
 
-The release package is written to `artifacts/release/ToastDesk-win-x64.zip`.
+The release assets are written to `artifacts/release`.
 
 ## Installer
 
-An Inno Setup script is provided at `installer/ToastDesk.iss`. It expects the published app under `artifacts/publish/win-x64`.
+Release packaging creates both an Inno Setup `.exe` installer and a WiX `.msi` installer.
 
-MSI packaging is not finalized yet. The current public-ready package target is a signed or unsigned Windows x64 ZIP/EXE package.
+Local installer builds require:
+
+- [Inno Setup 6](https://jrsoftware.org/isinfo.php)
+- WiX CLI: `dotnet tool install --global wix`
 
 ## Notification Sounds
 

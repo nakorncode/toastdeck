@@ -1,5 +1,7 @@
 #define MyAppName "ToastDesk"
+#ifndef MyAppVersion
 #define MyAppVersion "0.1.0"
+#endif
 #define MyAppPublisher "NakornCode"
 #define MyAppExeName "ToastDesk.exe"
 
@@ -12,7 +14,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=..\artifacts\installer
-OutputBaseFilename=ToastDesk-Setup-{#MyAppVersion}
+OutputBaseFilename=ToastDesk-Setup-{#MyAppVersion}-win-x64
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern

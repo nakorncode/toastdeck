@@ -26,6 +26,7 @@
 - For unpackaged WPF desktop notifications, register an AppUserModelID Start Menu shortcut before sending Windows toasts.
 - Prefer polling `UserNotificationListener.GetNotificationsAsync` for this prototype; subscribing to `NotificationChanged` can fail in this unpackaged desktop process.
 - The app should eventually ship as an easy Windows installable artifact, preferably `.exe` and/or `.msi`.
+- Release automation should publish public Windows assets from version tags: setup `.exe`, MSI, portable ZIP, and SHA256 checksums.
 
 ## Windows Behavior Requirements
 

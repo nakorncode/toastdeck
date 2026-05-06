@@ -13,10 +13,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
 
@@ -26,12 +26,19 @@ jobs:
       - name: Build
         run: dotnet build ToastDesk.csproj --configuration Release --no-restore
 
-      - name: Publish Windows x64 package
+      - name: Install packaging tools
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix
+          "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
+          choco install innosetup --yes --no-progress
+
+      - name: Build distributable assets
         shell: pwsh
         run: ./scripts/publish-release.ps1
 
-      - name: Upload release package
+      - name: Upload distributable assets
         uses: actions/upload-artifact@v4
         with:
-          name: ToastDesk-win-x64
-          path: artifacts/release/ToastDesk-win-x64.zip
+          name: ToastDesk-windows-assets
+          path: artifacts/release/ToastDesk-*
