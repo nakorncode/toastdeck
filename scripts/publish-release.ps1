@@ -7,7 +7,11 @@ param(
 
     [string] $ProductVersion,
 
-    [switch] $SkipInstallers
+    [switch] $SkipInstallers,
+
+    [switch] $SkipSetupExe,
+
+    [switch] $SkipMsi
 )
 
 $ErrorActionPreference = "Stop"
@@ -97,7 +101,7 @@ function New-ToastDeskMsi([string] $version) {
     $index = 0
 
     Get-ChildItem -Path $publishDir -File -Recurse | Sort-Object FullName | ForEach-Object {
-        $relativePath = [System.IO.Path]::GetRelativePath($publishDir, $_.FullName)
+        $relativePath = $_.FullName.Substring($publishDir.TrimEnd("\").Length + 1)
         $relativeDirectory = Split-Path -Parent $relativePath
         $directoryId = switch ($relativeDirectory) {
             "" { "INSTALLFOLDER" }
@@ -165,7 +169,7 @@ $componentRefXml
 "@
 
     Set-Content -Path $wxsPath -Value $wxs -Encoding UTF8
-    & $wixCommand.Source build $wxsPath -arch x64 -out $setupMsiPath
+    & $wixCommand.Source build $wxsPath -arch x64 -pdbtype none -out $setupMsiPath
 }
 
 $resolvedVersion = Get-ProductVersion
@@ -207,23 +211,28 @@ if (Test-Path $zipPath) {
 Compress-Archive -Path (Join-Path $publishDir "*") -DestinationPath $zipPath
 
 if (-not $SkipInstallers) {
-    $isccPath = Get-IsccPath
-    if (-not $isccPath) {
-        throw "Inno Setup compiler was not found. Install Inno Setup 6 or run with -SkipInstallers."
+    if (-not $SkipSetupExe) {
+        $isccPath = Get-IsccPath
+        if (-not $isccPath) {
+            throw "Inno Setup compiler was not found. Install Inno Setup 6 or run with -SkipInstallers."
+        }
+
+        & $isccPath "/DMyAppVersion=$resolvedVersion" $innoScriptPath
+
+        $builtSetupExe = Get-ChildItem -Path $installerDir -File -Filter "ToastDesk-Setup-*.exe" |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 1
+
+        if (-not $builtSetupExe) {
+            throw "Inno Setup did not create a setup executable."
+        }
+
+        Move-Item -LiteralPath $builtSetupExe.FullName -Destination $setupExePath -Force
     }
 
-    & $isccPath "/DMyAppVersion=$resolvedVersion" $innoScriptPath
-
-    $builtSetupExe = Get-ChildItem -Path $installerDir -File -Filter "ToastDesk-Setup-*.exe" |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
-
-    if (-not $builtSetupExe) {
-        throw "Inno Setup did not create a setup executable."
+    if (-not $SkipMsi) {
+        New-ToastDeskMsi $resolvedVersion
     }
-
-    Move-Item -LiteralPath $builtSetupExe.FullName -Destination $setupExePath -Force
-    New-ToastDeskMsi $resolvedVersion
 }
 
 $packages = Get-ChildItem -Path $releaseDir -File | Where-Object { $_.Extension -in ".zip", ".exe", ".msi" } | Sort-Object Name

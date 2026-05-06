@@ -42,7 +42,7 @@ jobs:
       - name: Install packaging tools
         shell: pwsh
         run: |
-          dotnet tool install --global wix
+          dotnet tool install --global wix --version 6.0.2
           "$env:USERPROFILE\.dotnet\tools" >> $env:GITHUB_PATH
           choco install innosetup --yes --no-progress
 
