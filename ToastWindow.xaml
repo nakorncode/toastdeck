@@ -3,58 +3,94 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="ToastDeck Notification"
         Width="380"
-        Height="150"
+        Height="156"
         WindowStyle="None"
         ResizeMode="NoResize"
         ShowInTaskbar="False"
         Topmost="True"
         ShowActivated="False"
+        FontFamily="Segoe UI Variable, Segoe UI"
         Background="Transparent"
         AllowsTransparency="True">
     <Border Margin="8"
-            Padding="18"
-            Background="#FFFFFF"
-            BorderBrush="#C9D1DF"
+            Padding="16"
+            Background="{StaticResource PanelBrush}"
+            BorderBrush="{StaticResource BorderBrushSoft}"
             BorderThickness="1"
-            CornerRadius="8">
+            CornerRadius="10">
         <Border.Effect>
-            <DropShadowEffect BlurRadius="18"
-                              ShadowDepth="4"
-                              Direction="270"
-                              Color="#66000000" />
+            <StaticResource ResourceKey="CardShadow" />
         </Border.Effect>
 
         <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
-                <RowDefinition Height="Auto" />
-            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
 
-            <TextBlock Text="{Binding Title}"
-                       FontSize="16"
-                       FontWeight="SemiBold"
-                       Foreground="#111827"
-                       TextTrimming="CharacterEllipsis" />
-            <TextBlock Grid.Row="1"
-                       Text="{Binding Message}"
-                       Margin="0,8,0,10"
-                       Foreground="#4B5563"
-                       TextWrapping="Wrap"
-                       MaxHeight="44" />
-            <DockPanel Grid.Row="2">
-                <TextBlock Text="{Binding CreatedAtLocalText}"
+            <Border Width="28"
+                    Height="28"
+                    Background="#F4F4F5"
+                    BorderBrush="{StaticResource BorderBrushSoft}"
+                    BorderThickness="1"
+                    CornerRadius="14"
+                    VerticalAlignment="Top">
+                <TextBlock Text="i"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center"
                            VerticalAlignment="Center"
-                           Foreground="#6B7280" />
-                <Button DockPanel.Dock="Right"
-                        MinWidth="84"
-                        Height="30"
-                        Padding="12,0"
-                        HorizontalAlignment="Right"
-                        Click="DismissButton_Click">
-                    Dismiss
-                </Button>
-            </DockPanel>
+                           Foreground="{StaticResource TextBrush}" />
+            </Border>
+
+            <Grid Grid.Column="1" Margin="12,0,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <DockPanel LastChildFill="True">
+                    <Button DockPanel.Dock="Right"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Width="28"
+                            MinWidth="28"
+                            Height="28"
+                            Padding="0"
+                            Margin="10,-4,-4,0"
+                            Click="DismissButton_Click">
+                        x
+                    </Button>
+                    <TextBlock Text="{Binding Title}"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource TextBrush}"
+                               TextTrimming="CharacterEllipsis" />
+                </DockPanel>
+
+                <TextBlock Grid.Row="1"
+                           Text="{Binding Message}"
+                           Margin="0,5,0,10"
+                           FontSize="13"
+                           Foreground="{StaticResource TextMutedBrush}"
+                           TextWrapping="Wrap"
+                           MaxHeight="46" />
+
+                <DockPanel Grid.Row="2">
+                    <TextBlock Text="{Binding CreatedAtLocalText}"
+                               VerticalAlignment="Center"
+                               FontSize="12"
+                               Foreground="{StaticResource TextMutedBrush}" />
+                    <Button DockPanel.Dock="Right"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            MinWidth="76"
+                            Height="30"
+                            HorizontalAlignment="Right"
+                            Click="DismissButton_Click">
+                        Done
+                    </Button>
+                </DockPanel>
+            </Grid>
         </Grid>
     </Border>
 </Window>

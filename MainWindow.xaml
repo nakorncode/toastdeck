@@ -5,12 +5,13 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
         Title="ToastDeck-A Demo"
-        Height="560"
-        Width="900"
-        MinHeight="480"
-        MinWidth="760"
-        Background="#F5F7FA">
-    <Grid Margin="24">
+        Height="620"
+        Width="980"
+        MinHeight="560"
+        MinWidth="860"
+        FontFamily="Segoe UI Variable, Segoe UI"
+        Background="{StaticResource AppBackgroundBrush}">
+    <Grid Margin="28">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -22,17 +23,15 @@
                         Orientation="Horizontal"
                         HorizontalAlignment="Right">
                 <Button x:Name="TestNotificationButton"
-                        MinWidth="148"
-                        Height="36"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        MinWidth="164"
                         Margin="0,0,8,0"
-                        Padding="14,0"
                         Click="TestNotificationButton_Click">
                     Send Windows Toast
                 </Button>
                 <Button x:Name="EnableWindowsListenerButton"
+                        Style="{StaticResource SecondaryButtonStyle}"
                         MinWidth="188"
-                        Height="36"
-                        Padding="14,0"
                         Click="EnableWindowsListenerButton_Click">
                     Retry Windows Capture
                 </Button>
@@ -40,23 +39,26 @@
 
             <StackPanel>
                 <TextBlock Text="ToastDeck-A Demo"
-                           FontSize="28"
+                           FontSize="30"
                            FontWeight="SemiBold"
-                           Foreground="#151A23" />
-                <TextBlock Text="Background tray app with persistent always-on-top toast cards."
+                           Foreground="{StaticResource TextBrush}" />
+                <TextBlock Text="Persistent desktop toast layer with Windows Notification Center capture."
                            Margin="0,6,0,0"
                            FontSize="14"
-                           Foreground="#5E6675" />
+                           Foreground="{StaticResource TextMutedBrush}" />
             </StackPanel>
         </DockPanel>
 
         <Border Grid.Row="1"
                 Margin="0,22,0,16"
-                Padding="16"
-                Background="White"
-                BorderBrush="#D7DCE5"
+                Padding="18"
+                Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource BorderBrushSoft}"
                 BorderThickness="1"
-                CornerRadius="6">
+                CornerRadius="10">
+            <Border.Effect>
+                <StaticResource ResourceKey="CardShadow" />
+            </Border.Effect>
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -64,21 +66,21 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel>
-                    <TextBlock Text="Listener status"
+                    <TextBlock Text="Windows Capture"
+                               FontSize="13"
                                FontWeight="SemiBold"
-                               Foreground="#151A23" />
+                               Foreground="{StaticResource TextBrush}" />
                     <TextBlock x:Name="ListenerStatusText"
-                               Margin="0,4,0,0"
+                               Margin="0,6,0,0"
                                Text="Starting Windows notification capture..."
-                               Foreground="#5E6675"
+                               Foreground="{StaticResource TextMutedBrush}"
                                TextWrapping="Wrap" />
                 </StackPanel>
 
                 <Button Grid.Column="1"
+                        Style="{StaticResource SecondaryButtonStyle}"
                         MinWidth="128"
-                        Height="34"
                         Margin="20,0,0,0"
-                        Padding="12,0"
                         Click="ClearNotificationsButton_Click">
                     Clear List
                 </Button>
@@ -86,27 +88,30 @@
         </Border>
 
         <Border Grid.Row="2"
-                Background="White"
-                BorderBrush="#D7DCE5"
+                Background="{StaticResource PanelBrush}"
+                BorderBrush="{StaticResource BorderBrushSoft}"
                 BorderThickness="1"
-                CornerRadius="6">
+                CornerRadius="10">
+            <Border.Effect>
+                <StaticResource ResourceKey="CardShadow" />
+            </Border.Effect>
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <Grid Margin="16,14,16,12">
+                <Grid Margin="18,16,18,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="2*" />
                         <ColumnDefinition Width="3*" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Text="Title" FontWeight="SemiBold" Foreground="#404756" />
-                    <TextBlock Grid.Column="1" Text="Message" FontWeight="SemiBold" Foreground="#404756" />
-                    <TextBlock Grid.Column="2" Text="Source" FontWeight="SemiBold" Foreground="#404756" Margin="16,0" />
-                    <TextBlock Grid.Column="3" Text="Time" FontWeight="SemiBold" Foreground="#404756" />
+                    <TextBlock Text="Title" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" />
+                    <TextBlock Grid.Column="1" Text="Message" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" />
+                    <TextBlock Grid.Column="2" Text="Source" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" Margin="16,0" />
+                    <TextBlock Grid.Column="3" Text="Time" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" />
                 </Grid>
 
                 <ListBox Grid.Row="1"
@@ -117,7 +122,8 @@
                     <ListBox.ItemTemplate>
                         <DataTemplate>
                             <Border Padding="16,12"
-                                    BorderBrush="#EDF0F5"
+                                    Background="{StaticResource PanelSubtleBrush}"
+                                    BorderBrush="{StaticResource BorderBrushSoft}"
                                     BorderThickness="0,1,0,0">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -129,20 +135,20 @@
 
                                     <TextBlock Text="{Binding Title}"
                                                FontWeight="SemiBold"
-                                               Foreground="#151A23"
+                                               Foreground="{StaticResource TextBrush}"
                                                TextWrapping="Wrap" />
                                     <TextBlock Grid.Column="1"
                                                Text="{Binding Message}"
-                                               Foreground="#404756"
+                                               Foreground="{StaticResource TextMutedBrush}"
                                                TextWrapping="Wrap"
                                                Margin="16,0" />
                                     <TextBlock Grid.Column="2"
                                                Text="{Binding Origin}"
-                                               Foreground="#5E6675"
+                                               Foreground="{StaticResource TextMutedBrush}"
                                                Margin="16,0" />
                                     <TextBlock Grid.Column="3"
                                                Text="{Binding CreatedAtLocalText}"
-                                               Foreground="#5E6675" />
+                                               Foreground="{StaticResource TextMutedBrush}" />
                                 </Grid>
                             </Border>
                         </DataTemplate>
