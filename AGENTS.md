@@ -19,6 +19,8 @@
 - Use C#/.NET WPF for the first prototype because Windows desktop APIs, always-on-top windows, tray behavior, focus handling, and installer paths are more mature there.
 - Rust is still a possible future option for lower-level components, but do not switch the main app stack until the WPF prototype proves or fails the core Windows behavior.
 - The previous ToastDeck attempt had runtime and reliability problems, so keep this project incremental and validate platform behavior in small slices.
+- For unpackaged WPF desktop notifications, register an AppUserModelID Start Menu shortcut before sending Windows toasts.
+- Prefer polling `UserNotificationListener.GetNotificationsAsync` for this prototype; subscribing to `NotificationChanged` can fail in this unpackaged desktop process.
 - The app should eventually ship as an easy Windows installable artifact, preferably `.exe` and/or `.msi`.
 
 ## Windows Behavior Requirements

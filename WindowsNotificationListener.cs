@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Windows.Threading;
 using Windows.UI.Notifications;
 using Windows.UI.Notifications.Management;
@@ -9,50 +10,74 @@ public sealed class WindowsNotificationListener : IDisposable
     private readonly NotificationStore store;
     private readonly Dispatcher dispatcher;
     private readonly HashSet<uint> capturedNotificationIds = [];
+    private readonly DispatcherTimer syncTimer;
     private UserNotificationListener? listener;
     private bool isDisposed;
+
+    public string LastStatusMessage { get; private set; } = "Not started.";
 
     public WindowsNotificationListener(NotificationStore store, Dispatcher dispatcher)
     {
         this.store = store;
         this.dispatcher = dispatcher;
+        syncTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher)
+        {
+            Interval = TimeSpan.FromSeconds(2)
+        };
+        syncTimer.Tick += async (_, _) => await CaptureCurrentNotificationsAsync();
     }
 
-    public async Task<WindowsNotificationListenerResult> StartAsync()
+    public async Task<WindowsNotificationListenerResult> StartAsync(bool forcePrompt)
     {
         if (isDisposed)
         {
-            return new WindowsNotificationListenerResult(false, "Windows notification capture was cancelled because the app is closing.");
+            return SetStatus(false, "Windows notification capture was cancelled because the app is closing.");
         }
 
-        listener = UserNotificationListener.Current;
-        var accessStatus = await listener.RequestAccessAsync();
+        UserNotificationListenerAccessStatus accessStatus;
+        try
+        {
+            listener = UserNotificationListener.Current;
+            accessStatus = listener.GetAccessStatus();
+
+            if (accessStatus == UserNotificationListenerAccessStatus.Unspecified || forcePrompt)
+            {
+                accessStatus = await listener.RequestAccessAsync();
+            }
+        }
+        catch (COMException ex)
+        {
+            return SetStatus(false, $"Windows notification capture could not start: {ex.Message}");
+        }
 
         if (isDisposed)
         {
-            return new WindowsNotificationListenerResult(false, "Windows notification capture was cancelled because the app is closing.");
+            return SetStatus(false, "Windows notification capture was cancelled because the app is closing.");
         }
 
         if (accessStatus != UserNotificationListenerAccessStatus.Allowed)
         {
-            return new WindowsNotificationListenerResult(
+            return SetStatus(
                 false,
-                $"Windows notification capture is not allowed. Status: {accessStatus}.");
+                $"Windows notification capture is not allowed. Status: {accessStatus}. Use Retry Windows Capture, or allow notification access in Windows Settings if denied.");
         }
 
-        listener.NotificationChanged -= OnNotificationChanged;
-        listener.NotificationChanged += OnNotificationChanged;
-
         await CaptureCurrentNotificationsAsync();
+        syncTimer.Start();
 
         if (isDisposed)
         {
-            return new WindowsNotificationListenerResult(false, "Windows notification capture was cancelled because the app is closing.");
+            return SetStatus(false, "Windows notification capture was cancelled because the app is closing.");
         }
 
-        return new WindowsNotificationListenerResult(
+        return SetStatus(
             true,
             "Windows notification capture is enabled. New Windows toasts will be mirrored into this demo list.");
+    }
+
+    public void ClearCapturedState()
+    {
+        capturedNotificationIds.Clear();
     }
 
     public void Dispose()
@@ -63,22 +88,9 @@ public sealed class WindowsNotificationListener : IDisposable
         }
 
         isDisposed = true;
+        syncTimer.Stop();
 
-        if (listener is not null)
-        {
-            listener.NotificationChanged -= OnNotificationChanged;
-            listener = null;
-        }
-    }
-
-    private async void OnNotificationChanged(UserNotificationListener sender, UserNotificationChangedEventArgs args)
-    {
-        if (isDisposed || args.ChangeKind != UserNotificationChangedKind.Added)
-        {
-            return;
-        }
-
-        await CaptureCurrentNotificationsAsync();
+        listener = null;
     }
 
     private async Task CaptureCurrentNotificationsAsync()
@@ -93,6 +105,10 @@ public sealed class WindowsNotificationListener : IDisposable
         try
         {
             notifications = await listener.GetNotificationsAsync(NotificationKinds.Toast);
+        }
+        catch (COMException)
+        {
+            return;
         }
         catch (UnauthorizedAccessException)
         {
@@ -133,5 +149,11 @@ public sealed class WindowsNotificationListener : IDisposable
             1 => (textElements[0], $"Notification ID {notification.Id}"),
             _ => (textElements[0], string.Join(Environment.NewLine, textElements.Skip(1)))
         };
+    }
+
+    private WindowsNotificationListenerResult SetStatus(bool isEnabled, string message)
+    {
+        LastStatusMessage = message;
+        return new WindowsNotificationListenerResult(isEnabled, message);
     }
 }

@@ -4,18 +4,24 @@ namespace ToastDeckA;
 
 public partial class MainWindow : Window, IDisposable
 {
-    private readonly NotificationStore store;
+    private readonly WindowsNotificationPlatform notificationPlatform;
     private readonly WindowsNotificationListener windowsNotificationListener;
+    private readonly WindowsNotificationPlatformResult platformResult;
     private bool allowClose;
     private bool isDisposed;
 
-    public MainWindow(NotificationStore store)
+    public MainWindow(
+        NotificationStore store,
+        WindowsNotificationPlatform notificationPlatform,
+        WindowsNotificationPlatformResult platformResult)
     {
-        this.store = store;
+        this.notificationPlatform = notificationPlatform;
+        this.platformResult = platformResult;
         windowsNotificationListener = new WindowsNotificationListener(store, Dispatcher);
 
         InitializeComponent();
         DataContext = store;
+        Loaded += MainWindow_Loaded;
     }
 
     protected override void OnStateChanged(EventArgs e)
@@ -58,31 +64,40 @@ public partial class MainWindow : Window, IDisposable
 
     private void TestNotificationButton_Click(object sender, RoutedEventArgs e)
     {
-        var count = store.Notifications.Count + 1;
-        store.Add(
-            $"Demo notification {count}",
-            "This persistent toast stays visible until an action is clicked.",
-            NotificationOrigin.AppDemo);
+        var result = notificationPlatform.SendTestNotification();
+        ListenerStatusText.Text = $"{result.Message} Capture status: {windowsNotificationListener.LastStatusMessage}";
     }
 
     private async void EnableWindowsListenerButton_Click(object sender, RoutedEventArgs e)
     {
-        EnableWindowsListenerButton.IsEnabled = false;
-        ListenerStatusText.Text = "Requesting Windows notification capture permission...";
+        await StartWindowsCaptureAsync(forcePrompt: true);
+    }
 
-        var result = await windowsNotificationListener.StartAsync();
+    private void ClearNotificationsButton_Click(object sender, RoutedEventArgs e)
+    {
+        windowsNotificationListener.ClearCapturedState();
+        ((NotificationStore)DataContext).Clear();
+    }
+
+    private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= MainWindow_Loaded;
+        await StartWindowsCaptureAsync(forcePrompt: false);
+    }
+
+    private async Task StartWindowsCaptureAsync(bool forcePrompt)
+    {
+        EnableWindowsListenerButton.IsEnabled = false;
+        ListenerStatusText.Text = $"{platformResult.Message} Starting Windows notification capture...";
+
+        var result = await windowsNotificationListener.StartAsync(forcePrompt);
 
         if (isDisposed || !IsLoaded)
         {
             return;
         }
 
-        ListenerStatusText.Text = result.Message;
+        ListenerStatusText.Text = $"{platformResult.Message} {result.Message}";
         EnableWindowsListenerButton.IsEnabled = !result.IsEnabled;
-    }
-
-    private void ClearNotificationsButton_Click(object sender, RoutedEventArgs e)
-    {
-        store.Clear();
     }
 }

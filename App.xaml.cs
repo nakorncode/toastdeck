@@ -10,6 +10,7 @@ public partial class App : System.Windows.Application
     private MainWindow? mainWindow;
     private NotificationStore? store;
     private ToastOverlayService? overlayService;
+    private WindowsNotificationPlatform? notificationPlatform;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -17,9 +18,12 @@ public partial class App : System.Windows.Application
 
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
+        notificationPlatform = new WindowsNotificationPlatform();
+        var platformResult = notificationPlatform.Initialize();
+
         store = new NotificationStore();
         overlayService = new ToastOverlayService(store);
-        mainWindow = new MainWindow(store);
+        mainWindow = new MainWindow(store, notificationPlatform, platformResult);
         mainWindow.Show();
 
         trayIcon = new Forms.NotifyIcon
@@ -44,7 +48,7 @@ public partial class App : System.Windows.Application
     {
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("Open", null, (_, _) => ShowMainWindow());
-        menu.Items.Add("Test notification", null, (_, _) => store?.Add("Tray test", "Created from the background tray process.", NotificationOrigin.AppDemo));
+        menu.Items.Add("Test notification", null, (_, _) => notificationPlatform?.SendTestNotification());
         menu.Items.Add("Exit", null, (_, _) => ExitApplication());
         return menu;
     }
