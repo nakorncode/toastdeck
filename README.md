@@ -1,14 +1,24 @@
 # ToastDesk
 
-ToastDesk is a Windows 11 desktop app that mirrors Windows notifications into persistent, always-on-top toast cards.
+Persistent Windows notifications you cannot miss.
 
-It is designed for people who miss important notifications because Windows Notification Center hides them behind the taskbar bell. ToastDesk keeps notifications visible until you take action.
+ToastDesk is a Windows 11 desktop app that mirrors Windows notifications into persistent, always-on-top toast cards. It keeps important alerts visible until you open or dismiss them.
 
 ![ToastDesk icon](assets/icons/ToastDesk.png)
 
+## Download
+
+Download the latest Windows build from:
+
+[ToastDesk Releases](https://github.com/nakorncode/toastdeck/releases/latest)
+
+Use `ToastDesk-win-x64.zip`, extract it, then run `ToastDesk.exe`.
+
+ToastDesk is currently distributed as a self-contained Windows x64 ZIP package. No separate .NET runtime install is required.
+
 ## Status
 
-ToastDesk is early public-preview software. Core notification capture, persistent overlay cards, tray behavior, settings, startup registration, and notification sounds are implemented. Installer/signing work is still in progress.
+ToastDesk is early public-preview software. Core notification capture, persistent overlay cards, tray behavior, settings, startup registration, notification actions, and notification sounds are implemented. Installer/signing work is still in progress.
 
 ## Features
 
@@ -22,6 +32,25 @@ ToastDesk is early public-preview software. Core notification capture, persisten
 - Do Not Disturb mode
 - Notification sound presets and custom sound files
 - Production-safe bundled sound assets
+
+## Release Flow
+
+Maintainers can publish a GitHub Release by pushing a version tag:
+
+```powershell
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The GitHub Actions release workflow will build `ToastDesk-win-x64.zip` and attach it to the release.
+
+You can also create the package locally:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1
+```
+
+The local package is written to `artifacts/release/ToastDesk-win-x64.zip`.
 
 ## Requirements
 
@@ -41,7 +70,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\run-dev.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\run-build.ps1
 ```
 
-## Publish Release Package
+## Publish Release Package Locally
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1
