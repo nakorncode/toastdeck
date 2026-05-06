@@ -11,13 +11,18 @@ public sealed class ToastOverlayService : IDisposable
     private const double StackOpacityStep = 0.16;
     private readonly NotificationStore store;
     private readonly AppSettings settings;
+    private readonly NotificationActionService notificationActionService;
     private readonly Dictionary<Guid, ToastWindow> windows = [];
     private readonly List<Guid> displayOrder = [];
 
-    public ToastOverlayService(NotificationStore store, AppSettings settings)
+    public ToastOverlayService(
+        NotificationStore store,
+        AppSettings settings,
+        NotificationActionService notificationActionService)
     {
         this.store = store;
         this.settings = settings;
+        this.notificationActionService = notificationActionService;
         store.NotificationAdded += OnNotificationAdded;
         store.NotificationDismissed += OnNotificationDismissed;
         settings.PropertyChanged += OnSettingsChanged;
@@ -44,7 +49,14 @@ public sealed class ToastOverlayService : IDisposable
             return;
         }
 
-        var window = new ToastWindow(notification, () => store.Dismiss(notification.Id));
+        var window = new ToastWindow(
+            notification,
+            () =>
+            {
+                notificationActionService.Open(notification);
+                store.Dismiss(notification.Id);
+            },
+            () => store.Dismiss(notification.Id));
         windows[notification.Id] = window;
         displayOrder.Insert(0, notification.Id);
         window.Show();

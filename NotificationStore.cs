@@ -8,9 +8,14 @@ public sealed class NotificationStore
     public event EventHandler<AppNotification>? NotificationAdded;
     public event EventHandler<Guid>? NotificationDismissed;
 
-    public AppNotification Add(string title, string message, NotificationOrigin origin)
+    public AppNotification Add(
+        string title,
+        string message,
+        NotificationOrigin origin,
+        string? sourceAppName = null,
+        string? sourceAppUserModelId = null)
     {
-        var notification = new AppNotification(title, message, origin);
+        var notification = new AppNotification(title, message, origin, sourceAppName, sourceAppUserModelId);
 
         if (System.Windows.Application.Current.Dispatcher.CheckAccess())
         {

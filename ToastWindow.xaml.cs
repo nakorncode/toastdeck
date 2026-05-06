@@ -13,10 +13,12 @@ public partial class ToastWindow : Window
     private const uint SwpNoActivate = 0x0010;
     private static readonly IntPtr HwndTopmost = new(-1);
     private static readonly Duration PlacementAnimationDuration = TimeSpan.FromMilliseconds(140);
+    private readonly Action open;
     private readonly Action dismiss;
 
-    public ToastWindow(AppNotification notification, Action dismiss)
+    public ToastWindow(AppNotification notification, Action open, Action dismiss)
     {
+        this.open = open;
         this.dismiss = dismiss;
         InitializeComponent();
         DataContext = notification;
@@ -34,6 +36,11 @@ public partial class ToastWindow : Window
     private void DismissButton_Click(object sender, RoutedEventArgs e)
     {
         dismiss();
+    }
+
+    private void OpenButton_Click(object sender, RoutedEventArgs e)
+    {
+        open();
     }
 
     public void ApplyStackPlacement(double left, double top, double scale, double opacity, int stackIndex)

@@ -111,7 +111,7 @@
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="Title" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" />
                             <TextBlock Grid.Column="1" Text="Message" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" />
-                            <TextBlock Grid.Column="2" Text="Source" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" Margin="16,0" />
+                    <TextBlock Grid.Column="2" Text="Source" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" Margin="16,0" />
                             <TextBlock Grid.Column="3" Text="Time" FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource TextMutedBrush}" />
                         </Grid>
 
@@ -144,7 +144,7 @@
                                                        TextWrapping="Wrap"
                                                        Margin="16,0" />
                                             <TextBlock Grid.Column="2"
-                                                       Text="{Binding Origin}"
+                                                       Text="{Binding SourceDisplayName}"
                                                        Foreground="{StaticResource TextMutedBrush}"
                                                        Margin="16,0" />
                                             <TextBlock Grid.Column="3"

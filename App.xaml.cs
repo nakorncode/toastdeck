@@ -11,6 +11,7 @@ public partial class App : System.Windows.Application
     private MainWindow? mainWindow;
     private NotificationStore? store;
     private ToastOverlayService? overlayService;
+    private NotificationActionService? notificationActionService;
     private WindowsNotificationPlatform? notificationPlatform;
     private AppSettings? settings;
 
@@ -35,7 +36,8 @@ public partial class App : System.Windows.Application
         settings = settingsService.Load();
 
         store = new NotificationStore();
-        overlayService = new ToastOverlayService(store, settings);
+        notificationActionService = new NotificationActionService(ShowMainWindow);
+        overlayService = new ToastOverlayService(store, settings, notificationActionService);
         mainWindow = new MainWindow(store, settings, notificationPlatform, platformResult);
 
         mainWindow.Show();

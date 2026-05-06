@@ -88,11 +88,20 @@
                                Foreground="{StaticResource TextMutedBrush}" />
                     <Button DockPanel.Dock="Right"
                             Style="{StaticResource PrimaryButtonStyle}"
-                            MinWidth="76"
+                            MinWidth="72"
+                            Height="30"
+                            Margin="8,0,0,0"
+                            HorizontalAlignment="Right"
+                            Click="OpenButton_Click">
+                        Open
+                    </Button>
+                    <Button DockPanel.Dock="Right"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            MinWidth="82"
                             Height="30"
                             HorizontalAlignment="Right"
                             Click="DismissButton_Click">
-                        Done
+                        Dismiss
                     </Button>
                 </DockPanel>
             </Grid>

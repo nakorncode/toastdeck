@@ -132,12 +132,17 @@ public sealed class WindowsNotificationListener : IDisposable
                 continue;
             }
 
-            var (title, message) = ExtractText(notification);
+            var details = ExtractDetails(notification);
             _ = dispatcher.InvokeAsync(() =>
             {
                 if (!isDisposed)
                 {
-                    store.Add(title, message, NotificationOrigin.Windows);
+                    store.Add(
+                        details.Title,
+                        details.Message,
+                        NotificationOrigin.Windows,
+                        details.SourceAppName,
+                        details.SourceAppUserModelId);
                 }
             });
         }
@@ -164,18 +169,28 @@ public sealed class WindowsNotificationListener : IDisposable
         }
     }
 
-    private static (string Title, string Message) ExtractText(UserNotification notification)
+    private static NotificationDetails ExtractDetails(UserNotification notification)
     {
         var binding = notification.Notification.Visual.GetBinding(KnownNotificationBindings.ToastGeneric);
         var textElements = binding?.GetTextElements().Select(item => item.Text).Where(text => !string.IsNullOrWhiteSpace(text)).ToArray() ?? [];
+        var sourceAppName = notification.AppInfo?.DisplayInfo.DisplayName;
+        var sourceAppUserModelId = notification.AppInfo?.AppUserModelId;
 
-        return textElements.Length switch
+        var (title, message) = textElements.Length switch
         {
             0 => ("Windows notification", $"Notification ID {notification.Id}"),
             1 => (textElements[0], $"Notification ID {notification.Id}"),
             _ => (textElements[0], string.Join(Environment.NewLine, textElements.Skip(1)))
         };
+
+        return new NotificationDetails(title, message, sourceAppName, sourceAppUserModelId);
     }
+
+    private sealed record NotificationDetails(
+        string Title,
+        string Message,
+        string? SourceAppName,
+        string? SourceAppUserModelId);
 
     private WindowsNotificationListenerResult SetStatus(bool isEnabled, string message)
     {
