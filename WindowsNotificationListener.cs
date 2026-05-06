@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Windows.Threading;
 using Windows.UI.Notifications;
 using Windows.UI.Notifications.Management;
@@ -7,12 +8,16 @@ namespace ToastDesk;
 
 public sealed class WindowsNotificationListener : IDisposable
 {
+    private static readonly TimeSpan EventBackupPollInterval = TimeSpan.FromSeconds(5);
+    private static readonly TimeSpan FastPollInterval = TimeSpan.FromMilliseconds(500);
     private readonly NotificationStore store;
     private readonly Dispatcher dispatcher;
     private readonly HashSet<uint> capturedNotificationIds = [];
     private readonly DispatcherTimer syncTimer;
     private UserNotificationListener? listener;
+    private int isCapturing;
     private bool isDisposed;
+    private bool isEventSubscriptionEnabled;
 
     public string LastStatusMessage { get; private set; } = "Not started.";
     public bool IsEnabled { get; private set; }
@@ -23,7 +28,7 @@ public sealed class WindowsNotificationListener : IDisposable
         this.dispatcher = dispatcher;
         syncTimer = new DispatcherTimer(DispatcherPriority.Background, dispatcher)
         {
-            Interval = TimeSpan.FromSeconds(2)
+            Interval = FastPollInterval
         };
         syncTimer.Tick += async (_, _) => await CaptureCurrentNotificationsAsync();
     }
@@ -64,6 +69,7 @@ public sealed class WindowsNotificationListener : IDisposable
         }
 
         await SeedExistingNotificationsAsync();
+        ConfigureNotificationChangeMode();
         syncTimer.Start();
 
         if (isDisposed)
@@ -86,15 +92,70 @@ public sealed class WindowsNotificationListener : IDisposable
         isDisposed = true;
         syncTimer.Stop();
 
+        UnsubscribeNotificationChanged();
         listener = null;
     }
 
     public void Stop()
     {
         syncTimer.Stop();
+        UnsubscribeNotificationChanged();
         listener = null;
         IsEnabled = false;
         LastStatusMessage = "Windows notification capture is disabled.";
+    }
+
+    private void ConfigureNotificationChangeMode()
+    {
+        UnsubscribeNotificationChanged();
+
+        if (listener is null)
+        {
+            syncTimer.Interval = FastPollInterval;
+            return;
+        }
+
+        try
+        {
+            listener.NotificationChanged += OnNotificationChanged;
+            isEventSubscriptionEnabled = true;
+            syncTimer.Interval = EventBackupPollInterval;
+        }
+        catch (COMException)
+        {
+            isEventSubscriptionEnabled = false;
+            syncTimer.Interval = FastPollInterval;
+        }
+    }
+
+    private void UnsubscribeNotificationChanged()
+    {
+        if (!isEventSubscriptionEnabled || listener is null)
+        {
+            isEventSubscriptionEnabled = false;
+            return;
+        }
+
+        try
+        {
+            listener.NotificationChanged -= OnNotificationChanged;
+        }
+        catch (COMException)
+        {
+            // Ignore unsubscribe failures during shutdown or fallback transitions.
+        }
+
+        isEventSubscriptionEnabled = false;
+    }
+
+    private async void OnNotificationChanged(UserNotificationListener sender, UserNotificationChangedEventArgs args)
+    {
+        if (args.ChangeKind != UserNotificationChangedKind.Added)
+        {
+            return;
+        }
+
+        await CaptureCurrentNotificationsAsync();
     }
 
     private async Task SeedExistingNotificationsAsync()
@@ -113,38 +174,45 @@ public sealed class WindowsNotificationListener : IDisposable
 
     private async Task CaptureCurrentNotificationsAsync()
     {
-        if (isDisposed || listener is null)
+        if (isDisposed || listener is null || Interlocked.Exchange(ref isCapturing, 1) == 1)
         {
             return;
         }
 
-        var notifications = await GetCurrentNotificationsAsync();
-
-        foreach (var notification in notifications)
+        try
         {
-            if (isDisposed || dispatcher.HasShutdownStarted)
-            {
-                return;
-            }
+            var notifications = await GetCurrentNotificationsAsync();
 
-            if (!capturedNotificationIds.Add(notification.Id))
+            foreach (var notification in notifications)
             {
-                continue;
-            }
-
-            var details = ExtractDetails(notification);
-            _ = dispatcher.InvokeAsync(() =>
-            {
-                if (!isDisposed)
+                if (isDisposed || dispatcher.HasShutdownStarted)
                 {
-                    store.Add(
-                        details.Title,
-                        details.Message,
-                        NotificationOrigin.Windows,
-                        details.SourceAppName,
-                        details.SourceAppUserModelId);
+                    return;
                 }
-            });
+
+                if (!capturedNotificationIds.Add(notification.Id))
+                {
+                    continue;
+                }
+
+                var details = ExtractDetails(notification);
+                _ = dispatcher.InvokeAsync(() =>
+                {
+                    if (!isDisposed)
+                    {
+                        store.Add(
+                            details.Title,
+                            details.Message,
+                            NotificationOrigin.Windows,
+                            details.SourceAppName,
+                            details.SourceAppUserModelId);
+                    }
+                });
+            }
+        }
+        finally
+        {
+            Interlocked.Exchange(ref isCapturing, 0);
         }
     }
 
@@ -196,6 +264,13 @@ public sealed class WindowsNotificationListener : IDisposable
     {
         IsEnabled = isEnabled;
         LastStatusMessage = message;
-        return new WindowsNotificationListenerResult(isEnabled, message);
+        if (isEnabled && !string.IsNullOrWhiteSpace(message))
+        {
+            LastStatusMessage = isEventSubscriptionEnabled
+                ? $"{message} Using Windows change events with polling backup."
+                : $"{message} Using fast polling because Windows change events are unavailable.";
+        }
+
+        return new WindowsNotificationListenerResult(isEnabled, LastStatusMessage);
     }
 }
