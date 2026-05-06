@@ -1,3 +1,4 @@
+using Microsoft.Win32;
 using System.Windows;
 using System.ComponentModel;
 
@@ -10,6 +11,7 @@ public partial class MainWindow : Window, IDisposable
     private readonly WindowsNotificationPlatformResult platformResult;
     private readonly AppSettings settings;
     private readonly NotificationStore store;
+    private readonly NotificationSoundService soundService;
     private bool allowClose;
     private bool isDisposed;
 
@@ -24,6 +26,7 @@ public partial class MainWindow : Window, IDisposable
         this.notificationPlatform = notificationPlatform;
         this.platformResult = platformResult;
         windowsNotificationListener = new WindowsNotificationListener(store, Dispatcher);
+        soundService = new NotificationSoundService(store, settings);
 
         InitializeComponent();
         DataContext = new MainViewModel(store, settings);
@@ -68,6 +71,7 @@ public partial class MainWindow : Window, IDisposable
         isDisposed = true;
         settings.PropertyChanged -= Settings_PropertyChanged;
         windowsNotificationListener.Dispose();
+        soundService.Dispose();
     }
 
     private void TestNotificationButton_Click(object sender, RoutedEventArgs e)
@@ -121,6 +125,40 @@ public partial class MainWindow : Window, IDisposable
 
         ListenerStatusText.Text = $"{platformResult.Message} {result.Message}";
         EnableWindowsListenerButton.IsEnabled = !result.IsEnabled;
+    }
+
+    private void SoundPresetComboBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (SoundPresetComboBox.SelectedValue is string presetId)
+        {
+            settings.SoundPresetId = presetId;
+        }
+    }
+
+    private void ChooseCustomSoundButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog
+        {
+            Title = "Choose notification sound",
+            Filter = "Audio files (*.wav;*.mp3;*.wma)|*.wav;*.mp3;*.wma|All files (*.*)|*.*"
+        };
+
+        if (dialog.ShowDialog(this) != true)
+        {
+            return;
+        }
+
+        settings.CustomSoundPath = dialog.FileName;
+        settings.SoundPresetId = NotificationSoundCatalog.CustomPresetId;
+        SoundPresetComboBox.SelectedValue = NotificationSoundCatalog.CustomPresetId;
+    }
+
+    private void PreviewSoundButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (!soundService.PlayPreview())
+        {
+            ListenerStatusText.Text = "No notification sound is available for the current sound settings.";
+        }
     }
 
     private async void Settings_PropertyChanged(object? sender, PropertyChangedEventArgs e)

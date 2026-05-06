@@ -10,4 +10,5 @@ public sealed class MainViewModel
 
     public NotificationStore NotificationStore { get; }
     public AppSettings Settings { get; }
+    public IReadOnlyList<NotificationSoundPreset> SoundPresets { get; } = NotificationSoundCatalog.AllPresets;
 }

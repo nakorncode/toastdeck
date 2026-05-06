@@ -9,4 +9,8 @@
     <UseWindowsForms>true</UseWindowsForms>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Content Include="assets\sounds\*.wav" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -5,6 +5,7 @@
 - This project is for a Windows 11 desktop app that shows persistent toast-style notifications on screen.
 - The product name is `ToastDesk`. Do not use old prototype names such as `ToastDeck-A` in user-facing UI, executable/project identity, AppUserModelID, shortcuts, settings paths, or startup registration.
 - Avoid demo-only wording in user-facing UI unless a screen is explicitly a development/test tool.
+- Bundle only production-safe audio assets with clear source/license notes; do not ship third-party game audio even if it appears in OpenCode notifier examples.
 - The core UX goal is to avoid missed notifications caused by the normal Windows Notification Center flow.
 - Toast cards should appear in an obvious on-screen location, stay visible above normal windows, and remain until the user takes an explicit action on that card.
 - Treat this as a custom always-on-top notification surface, not as a thin wrapper around the Windows notification center.

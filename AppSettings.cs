@@ -9,7 +9,11 @@ public sealed class AppSettings : INotifyPropertyChanged
     private bool startMinimized = true;
     private bool enableWindowsCapture = true;
     private bool enableToastOverlay = true;
+    private bool enableNotificationSound = true;
     private bool doNotDisturb;
+    private string soundPresetId = NotificationSoundCatalog.DefaultPresetId;
+    private string? customSoundPath;
+    private int notificationSoundVolume = 70;
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -37,15 +41,43 @@ public sealed class AppSettings : INotifyPropertyChanged
         set => SetField(ref enableToastOverlay, value);
     }
 
+    public bool EnableNotificationSound
+    {
+        get => enableNotificationSound;
+        set => SetField(ref enableNotificationSound, value);
+    }
+
     public bool DoNotDisturb
     {
         get => doNotDisturb;
         set => SetField(ref doNotDisturb, value);
     }
 
-    private void SetField(ref bool field, bool value, [CallerMemberName] string? propertyName = null)
+    public string SoundPresetId
     {
-        if (field == value)
+        get => soundPresetId;
+        set => SetField(ref soundPresetId, value);
+    }
+
+    public string? CustomSoundPath
+    {
+        get => customSoundPath;
+        set => SetField(ref customSoundPath, value);
+    }
+
+    public int NotificationSoundVolume
+    {
+        get => notificationSoundVolume;
+        set
+        {
+            var clampedValue = Math.Clamp(value, 0, 100);
+            SetField(ref notificationSoundVolume, clampedValue);
+        }
+    }
+
+    private void SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value))
         {
             return;
         }
@@ -53,4 +85,5 @@ public sealed class AppSettings : INotifyPropertyChanged
         field = value;
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
+
 }
