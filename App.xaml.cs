@@ -34,6 +34,7 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        mainWindow?.Dispose();
         trayIcon?.Dispose();
         overlayService?.Dispose();
         base.OnExit(e);
@@ -44,8 +45,14 @@ public partial class App : System.Windows.Application
         var menu = new Forms.ContextMenuStrip();
         menu.Items.Add("Open", null, (_, _) => ShowMainWindow());
         menu.Items.Add("Test notification", null, (_, _) => store?.Add("Tray test", "Created from the background tray process.", NotificationOrigin.AppDemo));
-        menu.Items.Add("Exit", null, (_, _) => Shutdown());
+        menu.Items.Add("Exit", null, (_, _) => ExitApplication());
         return menu;
+    }
+
+    private void ExitApplication()
+    {
+        mainWindow?.AllowCloseForExit();
+        Shutdown();
     }
 
     private void ShowMainWindow()

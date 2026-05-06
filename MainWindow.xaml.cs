@@ -2,10 +2,12 @@ using System.Windows;
 
 namespace ToastDeckA;
 
-public partial class MainWindow : Window
+public partial class MainWindow : Window, IDisposable
 {
     private readonly NotificationStore store;
     private readonly WindowsNotificationListener windowsNotificationListener;
+    private bool allowClose;
+    private bool isDisposed;
 
     public MainWindow(NotificationStore store)
     {
@@ -28,8 +30,30 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
+        if (allowClose)
+        {
+            Dispose();
+            return;
+        }
+
         e.Cancel = true;
         Hide();
+    }
+
+    public void AllowCloseForExit()
+    {
+        allowClose = true;
+    }
+
+    public void Dispose()
+    {
+        if (isDisposed)
+        {
+            return;
+        }
+
+        isDisposed = true;
+        windowsNotificationListener.Dispose();
     }
 
     private void TestNotificationButton_Click(object sender, RoutedEventArgs e)
@@ -47,6 +71,12 @@ public partial class MainWindow : Window
         ListenerStatusText.Text = "Requesting Windows notification capture permission...";
 
         var result = await windowsNotificationListener.StartAsync();
+
+        if (isDisposed || !IsLoaded)
+        {
+            return;
+        }
+
         ListenerStatusText.Text = result.Message;
         EnableWindowsListenerButton.IsEnabled = !result.IsEnabled;
     }
