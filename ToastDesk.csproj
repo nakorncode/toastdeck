@@ -7,10 +7,23 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>ToastDesk</AssemblyName>
+    <RootNamespace>ToastDesk</RootNamespace>
+    <Product>ToastDesk</Product>
+    <Title>ToastDesk</Title>
+    <Description>Persistent Windows notification overlay for Windows 11.</Description>
+    <Authors>NakornCode</Authors>
+    <Company>NakornCode</Company>
+    <Copyright>Copyright © NakornCode</Copyright>
+    <Version>0.1.0</Version>
+    <FileVersion>0.1.0.0</FileVersion>
+    <AssemblyVersion>0.1.0.0</AssemblyVersion>
+    <ApplicationIcon>assets\icons\ToastDesk.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <Content Include="assets\sounds\*.wav" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="assets\icons\ToastDesk.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -11,7 +11,7 @@ public sealed class StartupRegistrationService
     public bool IsRegistered()
     {
         using var key = Registry.CurrentUser.OpenSubKey(RunKeyPath, writable: false);
-        return key?.GetValue(ValueName) is string value && value.Contains("ToastDesk.exe", StringComparison.OrdinalIgnoreCase);
+        return key?.GetValue(ValueName) is string value && IsCurrentExecutable(value);
     }
 
     public void SetRegistered(bool isRegistered)
@@ -34,5 +34,17 @@ public sealed class StartupRegistrationService
 
         key.SetValue(ValueName, $"\"{executablePath}\"");
         key.DeleteValue(LegacyValueName, throwOnMissingValue: false);
+    }
+
+    private static bool IsCurrentExecutable(string registeredValue)
+    {
+        var executablePath = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(executablePath))
+        {
+            return false;
+        }
+
+        var normalizedRegisteredValue = registeredValue.Trim().Trim('"');
+        return string.Equals(normalizedRegisteredValue, executablePath, StringComparison.OrdinalIgnoreCase);
     }
 }

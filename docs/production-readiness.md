@@ -14,3 +14,11 @@
 - Improve settings: durable migration, clear defaults, restore defaults, notification sound presets/custom audio, and direct links to Windows notification permissions.
 - Prepare packaging: self-contained `.exe`, installer path, icon, versioning, and uninstall cleanup.
 - Add diagnostics: local logs for notification permission, shortcut registration, startup registration, and capture polling failures.
+
+## Current Public Repo Assets
+
+- `README.md`, `LICENSE`, `SECURITY.md`, and `CONTRIBUTING.md`
+- GitHub Actions CI and release workflows
+- `scripts/publish-release.ps1` for Windows x64 self-contained release ZIPs
+- `installer/ToastDesk.iss` for an optional Inno Setup installer
+- `assets/icons/ToastDesk.png` and `assets/icons/ToastDesk.ico`

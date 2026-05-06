@@ -6,6 +6,7 @@ namespace ToastDesk;
 
 public partial class App : System.Windows.Application
 {
+    private SingleInstanceGuard? singleInstanceGuard;
     private Forms.NotifyIcon? trayIcon;
     private MainWindow? mainWindow;
     private NotificationStore? store;
@@ -16,6 +17,13 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        singleInstanceGuard = new SingleInstanceGuard();
+        if (!singleInstanceGuard.HasOwnership)
+        {
+            Shutdown();
+            return;
+        }
 
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
@@ -30,18 +38,15 @@ public partial class App : System.Windows.Application
         overlayService = new ToastOverlayService(store, settings);
         mainWindow = new MainWindow(store, settings, notificationPlatform, platformResult);
 
+        mainWindow.Show();
         if (settings.StartMinimized)
         {
             mainWindow.Hide();
         }
-        else
-        {
-            mainWindow.Show();
-        }
 
         trayIcon = new Forms.NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath ?? "") ?? SystemIcons.Application,
             Text = "ToastDesk",
             Visible = true,
             ContextMenuStrip = BuildTrayMenu()
@@ -54,6 +59,7 @@ public partial class App : System.Windows.Application
         mainWindow?.Dispose();
         trayIcon?.Dispose();
         overlayService?.Dispose();
+        singleInstanceGuard?.Dispose();
         base.OnExit(e);
     }
 

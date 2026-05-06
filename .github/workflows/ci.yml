@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore ToastDesk.csproj
+
+      - name: Build
+        run: dotnet build ToastDesk.csproj --configuration Release --no-restore
+
+      - name: Publish Windows x64 package
+        shell: pwsh
+        run: ./scripts/publish-release.ps1
+
+      - name: Upload release package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ToastDesk-win-x64
+          path: artifacts/release/ToastDesk-win-x64.zip

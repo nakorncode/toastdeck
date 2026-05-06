@@ -27,6 +27,7 @@ public sealed class AppSettingsService
 
         if (settingsFileExists)
         {
+            startupRegistrationService.SetRegistered(settings.StartWithWindows);
             settings.StartWithWindows = startupRegistrationService.IsRegistered();
         }
         else
@@ -84,7 +85,9 @@ public sealed class AppSettingsService
             isSaving = true;
             Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
             var json = JsonSerializer.Serialize(settings, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(settingsPath, json);
+            var tempPath = $"{settingsPath}.tmp";
+            File.WriteAllText(tempPath, json);
+            File.Move(tempPath, settingsPath, overwrite: true);
         }
         finally
         {
