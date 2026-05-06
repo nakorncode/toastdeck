@@ -5,10 +5,10 @@ namespace ToastDeckA;
 public sealed class ToastOverlayService : IDisposable
 {
     private const double ScreenMargin = 18;
-    private const int MaxStackedToasts = 5;
-    private const double StackOffset = 14;
-    private const double StackScaleStep = 0.035;
-    private const double StackOpacityStep = 0.14;
+    private const int MaxStackedToasts = 4;
+    private const double StackOffset = 12;
+    private const double StackScaleStep = 0.04;
+    private const double StackOpacityStep = 0.16;
     private readonly NotificationStore store;
     private readonly Dictionary<Guid, ToastWindow> windows = [];
     private readonly List<Guid> displayOrder = [];
@@ -59,6 +59,7 @@ public sealed class ToastOverlayService : IDisposable
         var workArea = SystemParameters.WorkArea;
         var baseTop = workArea.Top + ScreenMargin;
         var right = workArea.Right - ScreenMargin;
+        var visibleWindows = new List<ToastWindow>();
 
         for (var index = 0; index < displayOrder.Count; index++)
         {
@@ -84,6 +85,12 @@ public sealed class ToastOverlayService : IDisposable
             }
 
             window.ApplyStackPlacement(left, top, scale, opacity, index);
+            visibleWindows.Add(window);
+        }
+
+        for (var index = visibleWindows.Count - 1; index >= 0; index--)
+        {
+            visibleWindows[index].RefreshTopmostOrder();
         }
     }
 }
