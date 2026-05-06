@@ -8,11 +8,11 @@ ToastDesk is a Windows 11 desktop app that mirrors Windows notifications into pe
 
 ## Download
 
-Download the latest Windows installer:
+Download the latest Windows build:
 
-- [ToastDesk-Setup-win-x64.exe](https://github.com/nakorncode/toastdeck/releases/latest/download/ToastDesk-Setup-win-x64.exe) - recommended installer
-- [ToastDesk-Setup-win-x64.msi](https://github.com/nakorncode/toastdeck/releases/latest/download/ToastDesk-Setup-win-x64.msi) - MSI package for Windows deployment
-- [ToastDesk-Portable-win-x64.zip](https://github.com/nakorncode/toastdeck/releases/latest/download/ToastDesk-Portable-win-x64.zip) - portable self-contained build
+- [ToastDesk-Setup-win-x64.msi](https://github.com/nakorncode/toastdeck/releases/latest/download/ToastDesk-Setup-win-x64.msi) - Windows Installer package for normal installation or deployment
+- [ToastDesk-Setup-win-x64.exe](https://github.com/nakorncode/toastdeck/releases/latest/download/ToastDesk-Setup-win-x64.exe) - guided setup installer
+- [ToastDesk-Portable-win-x64.zip](https://github.com/nakorncode/toastdeck/releases/latest/download/ToastDesk-Portable-win-x64.zip) - standalone portable build; extract and run `ToastDesk.exe`
 - [SHA256 checksums](https://github.com/nakorncode/toastdeck/releases/latest/download/ToastDesk-SHA256SUMS.txt)
 
 All release builds are self-contained. No separate .NET runtime install is required.
@@ -47,8 +47,8 @@ git push origin v0.1.0
 
 The GitHub Actions release workflow builds and uploads:
 
-- `ToastDesk-Setup-win-x64.exe`
 - `ToastDesk-Setup-win-x64.msi`
+- `ToastDesk-Setup-win-x64.exe`
 - `ToastDesk-Portable-win-x64.zip`
 - `ToastDesk-SHA256SUMS.txt`
 
@@ -88,7 +88,11 @@ The release assets are written to `artifacts/release`.
 
 ## Installer
 
-Release packaging creates both an Inno Setup `.exe` installer and a WiX `.msi` installer.
+Release packaging creates both installer and standalone assets:
+
+- MSI installer: `ToastDesk-Setup-win-x64.msi`
+- EXE installer: `ToastDesk-Setup-win-x64.exe`
+- Standalone portable ZIP: `ToastDesk-Portable-win-x64.zip`
 
 Local installer builds require:
 
