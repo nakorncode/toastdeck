@@ -13,11 +13,16 @@
         Background="Transparent"
         AllowsTransparency="True">
     <Border Margin="8"
+            x:Name="ToastCard"
             Padding="16"
+            RenderTransformOrigin="0.5,0"
             Background="{StaticResource PanelBrush}"
             BorderBrush="{StaticResource BorderBrushSoft}"
             BorderThickness="1"
             CornerRadius="10">
+        <Border.RenderTransform>
+            <ScaleTransform x:Name="StackScaleTransform" ScaleX="1" ScaleY="1" />
+        </Border.RenderTransform>
         <Border.Effect>
             <StaticResource ResourceKey="CardShadow" />
         </Border.Effect>
