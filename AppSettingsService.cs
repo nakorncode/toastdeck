@@ -19,8 +19,19 @@ public sealed class AppSettingsService
 
     public AppSettings Load()
     {
+        var settingsFileExists = File.Exists(settingsPath);
         var settings = LoadFromDisk();
-        settings.StartWithWindows = startupRegistrationService.IsRegistered();
+
+        if (settingsFileExists)
+        {
+            settings.StartWithWindows = startupRegistrationService.IsRegistered();
+        }
+        else
+        {
+            startupRegistrationService.SetRegistered(settings.StartWithWindows);
+            Save(settings);
+        }
+
         settings.PropertyChanged += OnSettingsChanged;
         return settings;
     }

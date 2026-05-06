@@ -5,8 +5,8 @@ namespace ToastDeckA;
 
 public sealed class AppSettings : INotifyPropertyChanged
 {
-    private bool startWithWindows;
-    private bool startMinimized;
+    private bool startWithWindows = true;
+    private bool startMinimized = true;
     private bool enableWindowsCapture = true;
     private bool enableToastOverlay = true;
     private bool doNotDisturb;
