@@ -255,7 +255,7 @@ public sealed class WindowsNotificationListener : IDisposable
 
             return new NotificationDetails(title, message, sourceAppName, sourceAppUserModelId);
         }
-        catch (Exception ex) when (ex is COMException or InvalidOperationException or NullReferenceException)
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or NotImplementedException or NullReferenceException)
         {
             return new NotificationDetails(
                 "Unsupported Windows notification skipped",
