@@ -72,6 +72,25 @@ The local packages are written to `artifacts/release`.
 powershell -ExecutionPolicy Bypass -File .\scripts\run-dev.ps1
 ```
 
+## Local Testing With An Installed Release
+
+The installed release and a local dev build currently use the same ToastDesk identity. They share the single-instance mutex, AppUserModelID, Start Menu shortcut, settings folder, and Windows startup Run key.
+
+You do not need to uninstall the released app for normal local testing, but you should exit ToastDesk from the tray before starting a dev build. If **Start with Windows** is enabled while running a dev build, the startup entry can point at the dev executable. Turn that setting off for dev testing, or turn it back on from the installed release afterward.
+
+For installer-like testing on the same PC:
+
+1. Exit the installed ToastDesk tray app.
+2. Build a portable release with:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\publish-release.ps1 -SkipInstallers
+```
+
+3. Run `artifacts\publish\win-x64\ToastDesk.exe`.
+
+For true side-by-side testing while the released app keeps running in the background, use a VM/Windows Sandbox or add a separate dev identity first.
+
 ## Build
 
 ```powershell

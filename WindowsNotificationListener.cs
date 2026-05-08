@@ -239,19 +239,30 @@ public sealed class WindowsNotificationListener : IDisposable
 
     private static NotificationDetails ExtractDetails(UserNotification notification)
     {
-        var binding = notification.Notification.Visual.GetBinding(KnownNotificationBindings.ToastGeneric);
-        var textElements = binding?.GetTextElements().Select(item => item.Text).Where(text => !string.IsNullOrWhiteSpace(text)).ToArray() ?? [];
-        var sourceAppName = notification.AppInfo?.DisplayInfo.DisplayName;
-        var sourceAppUserModelId = notification.AppInfo?.AppUserModelId;
-
-        var (title, message) = textElements.Length switch
+        try
         {
-            0 => ("Windows notification", $"Notification ID {notification.Id}"),
-            1 => (textElements[0], $"Notification ID {notification.Id}"),
-            _ => (textElements[0], string.Join(Environment.NewLine, textElements.Skip(1)))
-        };
+            var binding = notification.Notification.Visual.GetBinding(KnownNotificationBindings.ToastGeneric);
+            var textElements = binding?.GetTextElements().Select(item => item.Text).Where(text => !string.IsNullOrWhiteSpace(text)).ToArray() ?? [];
+            var sourceAppName = notification.AppInfo?.DisplayInfo.DisplayName;
+            var sourceAppUserModelId = notification.AppInfo?.AppUserModelId;
 
-        return new NotificationDetails(title, message, sourceAppName, sourceAppUserModelId);
+            var (title, message) = textElements.Length switch
+            {
+                0 => ("Windows notification", $"Notification ID {notification.Id}"),
+                1 => (textElements[0], $"Notification ID {notification.Id}"),
+                _ => (textElements[0], string.Join(Environment.NewLine, textElements.Skip(1)))
+            };
+
+            return new NotificationDetails(title, message, sourceAppName, sourceAppUserModelId);
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or NullReferenceException)
+        {
+            return new NotificationDetails(
+                "Unsupported Windows notification skipped",
+                $"ToastDesk could not read notification ID {notification.Id}.{Environment.NewLine}{CrashReporter.FormatExceptionSummary(ex)}",
+                null,
+                null);
+        }
     }
 
     private sealed record NotificationDetails(

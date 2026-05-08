@@ -17,6 +17,7 @@ public partial class App : System.Windows.Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        CrashReporter.Install(this);
         base.OnStartup(e);
 
         singleInstanceGuard = new SingleInstanceGuard();

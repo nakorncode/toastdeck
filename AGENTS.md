@@ -41,5 +41,6 @@
 - Prefer the smallest clean change for each step.
 - Use local prototypes to validate risky platform behavior before building larger abstractions.
 - Use `scripts/run-dev.ps1` as the simple local run entrypoint and `scripts/run-build.ps1` as the simple build entrypoint.
+- Current dev and release builds share the same singleton mutex, AppUserModelID, Start Menu shortcut, settings path, and startup Run key. Do not assume they can run side by side until a separate dev identity is intentionally added.
 - Do not introduce unrelated product scope such as cloud sync, accounts, or cross-platform support unless explicitly requested.
 - Do not run builds, tests, browser checks, or packaging commands by default after normal edits unless the user asks or the change is high-risk.
