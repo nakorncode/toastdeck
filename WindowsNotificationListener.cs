@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows.Threading;
@@ -196,6 +197,11 @@ public sealed class WindowsNotificationListener : IDisposable
                 }
 
                 var details = ExtractDetails(notification);
+                if (details is null)
+                {
+                    continue;
+                }
+
                 _ = dispatcher.InvokeAsync(() =>
                 {
                     if (!isDisposed)
@@ -237,31 +243,59 @@ public sealed class WindowsNotificationListener : IDisposable
         }
     }
 
-    private static NotificationDetails ExtractDetails(UserNotification notification)
+    private static NotificationDetails? ExtractDetails(UserNotification notification)
     {
+        string[] textElements;
         try
         {
             var binding = notification.Notification.Visual.GetBinding(KnownNotificationBindings.ToastGeneric);
-            var textElements = binding?.GetTextElements().Select(item => item.Text).Where(text => !string.IsNullOrWhiteSpace(text)).ToArray() ?? [];
-            var sourceAppName = notification.AppInfo?.DisplayInfo.DisplayName;
-            var sourceAppUserModelId = notification.AppInfo?.AppUserModelId;
-
-            var (title, message) = textElements.Length switch
-            {
-                0 => ("Windows notification", $"Notification ID {notification.Id}"),
-                1 => (textElements[0], $"Notification ID {notification.Id}"),
-                _ => (textElements[0], string.Join(Environment.NewLine, textElements.Skip(1)))
-            };
-
-            return new NotificationDetails(title, message, sourceAppName, sourceAppUserModelId);
+            textElements = binding?.GetTextElements().Select(item => item.Text).Where(text => !string.IsNullOrWhiteSpace(text)).ToArray() ?? [];
         }
         catch (Exception ex) when (ex is COMException or InvalidOperationException or NotImplementedException or NullReferenceException)
         {
-            return new NotificationDetails(
-                "Unsupported Windows notification skipped",
-                $"ToastDesk could not read notification ID {notification.Id}.{Environment.NewLine}{CrashReporter.FormatExceptionSummary(ex)}",
-                null,
-                null);
+            WriteCaptureDiagnostic(notification.Id, "Skipped notification because Windows did not expose readable toast text.", ex);
+            return null;
+        }
+
+        var (sourceAppName, sourceAppUserModelId) = ExtractSourceAppInfo(notification);
+        var (title, message) = textElements.Length switch
+        {
+            0 => (sourceAppName ?? "Windows notification", $"Notification ID {notification.Id}"),
+            1 => (textElements[0], sourceAppName is null ? $"Notification ID {notification.Id}" : $"{sourceAppName}{Environment.NewLine}Notification ID {notification.Id}"),
+            _ => (textElements[0], string.Join(Environment.NewLine, textElements.Skip(1)))
+        };
+
+        return new NotificationDetails(title, message, sourceAppName, sourceAppUserModelId);
+    }
+
+    private static (string? SourceAppName, string? SourceAppUserModelId) ExtractSourceAppInfo(UserNotification notification)
+    {
+        try
+        {
+            return (
+                notification.AppInfo?.DisplayInfo.DisplayName,
+                notification.AppInfo?.AppUserModelId);
+        }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException or NotImplementedException or NullReferenceException)
+        {
+            WriteCaptureDiagnostic(notification.Id, "Notification source app metadata is unavailable; card will use a ToastDesk fallback action.", ex);
+            return (null, null);
+        }
+    }
+
+    private static void WriteCaptureDiagnostic(uint notificationId, string message, Exception exception)
+    {
+        try
+        {
+            var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ToastDesk");
+            Directory.CreateDirectory(logDir);
+            File.AppendAllText(
+                Path.Combine(logDir, "notification-capture.log"),
+                $"{DateTimeOffset.Now:O} Notification ID {notificationId}: {message} {CrashReporter.FormatExceptionSummary(exception)}{Environment.NewLine}");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            // Capture diagnostics must never interrupt notification mirroring.
         }
     }
 

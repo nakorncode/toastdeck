@@ -25,6 +25,7 @@
 - The previous ToastDesk attempt had runtime and reliability problems, so keep this project incremental and validate platform behavior in small slices.
 - For unpackaged WPF desktop notifications, register an AppUserModelID Start Menu shortcut before sending Windows toasts.
 - Prefer polling `UserNotificationListener.GetNotificationsAsync` for this prototype; subscribing to `NotificationChanged` can fail in this unpackaged desktop process.
+- When Windows exposes partial or unsupported notification metadata, parse the readable toast text best-effort and log diagnostics locally instead of showing an `Unsupported` error card to the user.
 - The app should eventually ship as an easy Windows installable artifact, preferably `.exe` and/or `.msi`.
 - Release automation should publish public Windows assets from version tags: setup `.exe`, MSI, portable ZIP, and SHA256 checksums.
 
