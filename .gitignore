@@ -2,7 +2,7 @@
 bin/
 obj/
 
-# Future Tauri / Node / Rust scaffold
+# Node / Vite / Tauri
 node_modules/
 dist/
 src-tauri/target/

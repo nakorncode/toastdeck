@@ -19,8 +19,8 @@ v1 (WPF) is a working notification-capture app. v2 is a rewrite: Tauri 2 + Solid
 
 ## Milestones
 
-1. **Docs-only root (this commit).** No `src`, no `src-tauri`, no `package.json`.
-2. **Scaffold.** Unpackaged Tauri 2 + SolidJS app. Tray + transparent `"toast"` overlay. No capture. Identity strings from `AGENTS.md`.
+1. **Docs-only root.** Done (`595dc3d`).
+2. **Scaffold (current).** Unpackaged Tauri 2 + SolidJS. Tray Exit, hidden `"toast"` overlay placeholder, `com.nakorncode.toastdesk.v2`, single-instance. No capture, no `solid-sonner`.
 3. **Overlay MVP.** `solid-sonner` cards, test toast from tray, sound presets, 9-point position, debug bounds, launch on startup.
 4. **Capture.** Port behavior from branch `v1` (UserNotificationListener, permission, dedupe, open/dismiss) into Rust. Decide MSIX then. Do not start from a TrayBits file dump.
 5. **Identity cutover.** First GitHub **Release** on this `main` takes the old ToastDesk identity. Uninstall v1 first. Overlay-only may be that release if a Release is published before capture exists.

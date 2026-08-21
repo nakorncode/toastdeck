@@ -2,32 +2,49 @@
 
 Persistent Windows notifications you cannot miss.
 
-This repository is in a **v2 rewrite**. `main` is an empty Tauri-era tree (docs only for now). The shipping WPF app lives on branch [`v1`](https://github.com/nakorncode/toastdeck/tree/v1) and tag [`v1-final`](https://github.com/nakorncode/toastdeck/releases/tag/v1-final).
+This repository is in a **v2 rewrite**. `main` is an unpackaged Tauri 2 + SolidJS tray overlay (scaffold). The shipping WPF app lives on branch [`v1`](https://github.com/nakorncode/toastdeck/tree/v1) and tag [`v1-final`](https://github.com/nakorncode/toastdeck/releases/tag/v1-final).
 
 ## Status
 
 | Line | What it is |
 | --- | --- |
 | **v1** | Unpackaged .NET WPF app. Captures Windows Notification Center toasts and keeps them on screen. Last release: `v0.1.4`. |
-| **v2 (this branch)** | Tauri 2 + SolidJS + `solid-sonner`. Tray overlay only at first. Real capture comes later. No application source in the first commit. |
+| **v2 (this branch)** | Tauri 2 + SolidJS tray app. Hidden `"toast"` overlay + tray **Exit**. `solid-sonner`, capture, sounds, and position menus are not in this slice. |
 
 Until a GitHub **Release** is published from this new `main`, installed v1 can keep running. **The first GitHub Release on this `main` takes over the old ToastDesk Windows identity.** Uninstall v1 before that release.
 
-## v2 shape (planned)
+## v2 shape
 
-- Almost no UI: always-on-top Sonner toast overlay + a tray icon.
-- Settings live on the **tray context menu**: launch on startup, sound on/off and preset, overlay position, debug overlay, show test toast, exit.
+- Almost no UI: always-on-top overlay + a tray icon.
+- Current tray: **Exit**. Left-click the tray icon to show or hide the placeholder overlay.
+- Later tray: launch on startup, sound, position, debug overlay, show test toast.
 - No settings window. No user-facing main window.
-- Overlay positions: 9-point grid on the primary monitor (corners, edge middles, center). Default **top-right**.
+- Overlay positions (later): 9-point grid on the primary monitor. Default **top-right**.
 - Unpackaged Tauri until capture work needs MSIX.
+
+## Development
+
+Rust must be on `PATH` (`%USERPROFILE%\.cargo\bin`). Cursor terminals that were opened before rustup was installed will not see it; `pnpm tauri` prepends that directory so `pnpm tauri dev` still works.
+
+```powershell
+pnpm install
+pnpm tauri dev
+```
+
+Checks:
+
+```powershell
+pnpm check
+cargo check --manifest-path .\src-tauri\Cargo.toml
+```
+
+The no-bundle executable is written to `src-tauri\target\release\ToastDesk.exe` after `pnpm tauri build --no-bundle`.
 
 ## Run v1 from this clone
 
 ```powershell
 git switch v1
 ```
-
-v1 docs, installer scripts, and source are on that branch only.
 
 ## Local path
 
@@ -43,4 +60,4 @@ G:\NakornCode\git\traybits
 
 ## License
 
-MIT. The v1 `LICENSE` file is on branch `v1`. A license file will return on `main` when application source lands.
+MIT. See [LICENSE](LICENSE).

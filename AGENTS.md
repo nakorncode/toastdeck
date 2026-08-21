@@ -4,7 +4,7 @@ These instructions apply to `G:\NakornCode\git\toastdeck` on **`main` (v2)**.
 
 ## What this tree is
 
-`main` is ToastDesk **v2**, started from an **orphan** commit with no WPF history. The first commit is docs only. Application source is added in later slices.
+`main` is ToastDesk **v2**, started from an orphan commit. Current source is an unpackaged Tauri 2 + SolidJS scaffold: tray **Exit**, hidden `"toast"` overlay with a placeholder card, single-instance plugin. Left-click the tray icon toggles the overlay so the placeholder can be inspected.
 
 WPF v1 is **read-only history** on branch `v1` and tag `v1-final`. Inspect it when you need the old capture/behavior spec. Rewrite v2 from that spec and from TrayBits as a *pattern*. Do not copy TrayBits suite files (Caps Lock, settings shell, eye-rest) into this repo.
 
@@ -16,7 +16,7 @@ Until the first GitHub **Release** on this `main`, v2 uses a separate identity s
 | --- | --- |
 | Product name | `ToastDesk` |
 | AUMID | `NakornCode.ToastDesk.v2` |
-| Mutex | `Local\NakornCode.ToastDesk.v2` |
+| Mutex | `Local\NakornCode.ToastDesk.v2` (single-instance plugin; align explicitly if it does not match) |
 | Settings | `%LOCALAPPDATA%\ToastDesk.v2` |
 | Run key value | `ToastDesk.v2` |
 | Start Menu | `ToastDesk v2.lnk` |
@@ -27,19 +27,20 @@ The first GitHub Release on this `main` **steals** `NakornCode.ToastDesk`, mutex
 
 ## Locked product shape
 
-Tray-only overlay app. Hidden Tauri window only if the runtime requires one.
+Tray-only overlay app. Hidden Tauri window only if the runtime requires one. This scaffold’s only window is `"toast"`.
 
-Tray: Launch on startup · Sound (enabled + short preset list) · Position · Debug overlay · Show test toast · Exit.
+Tray now: **Exit**. Later: Launch on startup · Sound (enabled + short preset list) · Position · Debug overlay · Show test toast · Exit.
 
 Position: 9-point grid, **primary monitor**, default **top-right**.
 
 Debug overlay: show overlay bounds and a sample toast.
 
-Stack when source lands: Tauri 2, SolidJS, `solid-sonner`, unpackaged. MSIX / `userNotificationListener` capability only when capture is in scope. Capture is not the first source slice.
+Stack: Tauri 2, SolidJS, unpackaged. Add `solid-sonner` in the overlay MVP slice. MSIX / `userNotificationListener` capability only when capture is in scope.
 
 ## Working style
 
 - PowerShell on Windows.
+- `pnpm` for JS; Cargo for `src-tauri`. `pnpm tauri` runs `scripts/with-cargo.mjs`, which prepends `%USERPROFILE%\.cargo\bin` because some Cursor terminals do not inherit the rustup user PATH.
 - Keep this `main` free of v1 WPF files.
 - Treat tray, startup, overlay click-through, and identity strings as user-impacting surfaces.
 - Read [docs/v2-plan.md](docs/v2-plan.md) before implementing overlay, tray, sound, position, debug, packaging, or capture.
@@ -47,4 +48,9 @@ Stack when source lands: Tauri 2, SolidJS, `solid-sonner`, unpackaged. MSIX / `u
 
 ## Verification
 
-This commit has no application source. After a future scaffold, use the commands in `package.json` / `src-tauri` rather than restating them here.
+```powershell
+pnpm typecheck
+pnpm lint
+pnpm build
+cargo check --manifest-path .\src-tauri\Cargo.toml
+```
