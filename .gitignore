@@ -1,0 +1,13 @@
+# Build leftovers from the v1 working tree
+bin/
+obj/
+
+# Future Tauri / Node / Rust scaffold
+node_modules/
+dist/
+src-tauri/target/
+.pnpm-store/
+*.log
+.DS_Store
+Thumbs.db
+artifacts/
