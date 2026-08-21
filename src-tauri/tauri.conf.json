@@ -32,6 +32,16 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "resources": [
+      "../assets/sounds/aosp-acrux.wav",
+      "../assets/sounds/aosp-adara.wav",
+      "../assets/sounds/aosp-altair.wav",
+      "../assets/sounds/aosp-alya.wav",
+      "../assets/sounds/aosp-antares.wav",
+      "../assets/sounds/aosp-argon.wav",
+      "../assets/sounds/aosp-capella.wav",
+      "../assets/sounds/aosp-vega.wav"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

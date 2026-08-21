@@ -3,8 +3,9 @@
   "identifier": "default",
   "description": "Capability for the ToastDesk overlay window",
   "windows": ["toast"],
-  "permissions": [
+    "permissions": [
     "core:default",
-    "core:window:allow-set-always-on-top"
+    "core:window:allow-set-always-on-top",
+    "autostart:default"
   ]
 }

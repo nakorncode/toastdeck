@@ -1,50 +1,42 @@
 # ToastDesk agent notes
 
-These instructions apply to `G:\NakornCode\git\toastdeck` on **`main` (v2)**.
+These instructions apply to `G:\NakornCode\git\toastdeck` on **v2** (`main` after merge, or `cursor/toastdesk-v2-tauri-scaffold`).
 
 ## What this tree is
 
-`main` is ToastDesk **v2**, started from an orphan commit. Current source is an unpackaged Tauri 2 + SolidJS scaffold: tray **Exit**, hidden `"toast"` overlay with a placeholder card, single-instance plugin. Left-click the tray icon toggles the overlay so the placeholder can be inspected.
+Unpackaged Tauri 2 + SolidJS + `solid-sonner` tray overlay. Tray settings, test toast, sounds, 9-point placement, duration, debug bounds. No Windows notification capture yet.
 
-WPF v1 is **read-only history** on branch `v1` and tag `v1-final`. Inspect it when you need the old capture/behavior spec. Rewrite v2 from that spec and from TrayBits as a *pattern*. Do not copy TrayBits suite files (Caps Lock, settings shell, eye-rest) into this repo.
+WPF v1 is **read-only** on branch `v1` / tag `v1-final`. TrayBits is a pattern, not a file dump.
 
 ## Identity
 
-Until the first GitHub **Release** on this `main`, v2 uses a separate identity so installed v1 can keep running:
+Until the first GitHub **Release** on `main`, v2 uses a separate identity:
 
 | Key | Value |
 | --- | --- |
 | Product name | `ToastDesk` |
 | AUMID | `NakornCode.ToastDesk.v2` |
-| Mutex | `Local\NakornCode.ToastDesk.v2` (single-instance plugin; align explicitly if it does not match) |
-| Settings | `%LOCALAPPDATA%\ToastDesk.v2` |
-| Run key value | `ToastDesk.v2` |
-| Start Menu | `ToastDesk v2.lnk` |
+| Settings | `%LOCALAPPDATA%\ToastDesk.v2\settings.json` |
+| Run key value | `ToastDesk.v2` (`tauri-plugin-autostart` `app_name`) |
 | Tauri identifier | `com.nakorncode.toastdesk.v2` |
 | Executable | `ToastDesk.exe` |
 
-The first GitHub Release on this `main` **steals** `NakornCode.ToastDesk`, mutex `Local\NakornCode.ToastDesk`, `%LOCALAPPDATA%\ToastDesk`, Run value `ToastDesk`, and `ToastDesk.lnk`. Uninstall v1 before that release. Pushing commits is not that cutover; publishing a Release is.
+The first GitHub Release on `main` **steals** the old ToastDesk identity. Uninstall v1 before that release.
 
 ## Locked product shape
 
-Tray-only overlay app. Hidden Tauri window only if the runtime requires one. This scaffold’s only window is `"toast"`.
-
-Tray now: **Exit**. Later: Launch on startup · Sound (enabled + short preset list) · Position · Debug overlay · Show test toast · Exit.
-
-Position: 9-point grid, **primary monitor**, default **top-right**.
-
-Debug overlay: show overlay bounds and a sample toast.
-
-Stack: Tauri 2, SolidJS, unpackaged. Add `solid-sonner` in the overlay MVP slice. MSIX / `userNotificationListener` capability only when capture is in scope.
+- No user-facing main window. Overlay `"toast"` only.
+- Left-click tray does nothing. Right-click the tray for settings.
+- Overlay is visible only when a toast exists or debug is on.
+- Tray: Launch on startup · Sound (on/off + 8 AOSP presets, default Argon) · Position (9-point, primary) · Duration (10s / 30s / 1 min / infinite) · Debug overlay · Show test toast · Exit.
+- First run: sound on, startup on, top-right, debug off, duration infinite.
+- Test toast is obviously fake (`Test`). Debug uses bounds fill + a sample toast, not a decorated window.
 
 ## Working style
 
-- PowerShell on Windows.
-- `pnpm` for JS; Cargo for `src-tauri`. `pnpm tauri` runs `scripts/with-cargo.mjs`, which prepends `%USERPROFILE%\.cargo\bin` because some Cursor terminals do not inherit the rustup user PATH.
-- Keep this `main` free of v1 WPF files.
-- Treat tray, startup, overlay click-through, and identity strings as user-impacting surfaces.
-- Read [docs/v2-plan.md](docs/v2-plan.md) before implementing overlay, tray, sound, position, debug, packaging, or capture.
-- Read branch `v1` only when you need the old Windows capture or installer behavior as a spec.
+- PowerShell. `pnpm` for JS; Cargo for `src-tauri`.
+- `pnpm tauri` runs `scripts/with-cargo.mjs` so Cursor terminals get Cargo **and** keep `pnpm` on `Path`.
+- Read [docs/v2-plan.md](docs/v2-plan.md) before capture, packaging, or identity cutover.
 
 ## Verification
 

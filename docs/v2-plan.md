@@ -20,8 +20,8 @@ v1 (WPF) is a working notification-capture app. v2 is a rewrite: Tauri 2 + Solid
 ## Milestones
 
 1. **Docs-only root.** Done (`595dc3d`).
-2. **Scaffold (current).** Unpackaged Tauri 2 + SolidJS. Tray Exit, hidden `"toast"` overlay placeholder, `com.nakorncode.toastdesk.v2`, single-instance. No capture, no `solid-sonner`.
-3. **Overlay MVP.** `solid-sonner` cards, test toast from tray, sound presets, 9-point position, debug bounds, launch on startup.
+2. **Scaffold.** Done on `cursor/toastdesk-v2-tauri-scaffold`.
+3. **Overlay MVP (current).** `solid-sonner`, test toast, AOSP sounds, 9-point position, duration submenu, debug bounds, launch on startup.
 4. **Capture.** Port behavior from branch `v1` (UserNotificationListener, permission, dedupe, open/dismiss) into Rust. Decide MSIX then. Do not start from a TrayBits file dump.
 5. **Identity cutover.** First GitHub **Release** on this `main` takes the old ToastDesk identity. Uninstall v1 first. Overlay-only may be that release if a Release is published before capture exists.
 
@@ -40,9 +40,11 @@ v1 WPF remains the capture spec (event + polling hybrid, unpackaged listener, ov
 - Windows: overlay labeled `"toast"`; no user-facing main window.
 - Default placement: primary monitor, top-right.
 - Positions: top-left, top-center, top-right, middle-left, center, middle-right, bottom-left, bottom-center, bottom-right.
-- Sound: on/off plus a **short** preset list (about 5–8), selected from a tray submenu.
+- Sound: on/off plus eight AOSP WAV presets (default Argon).
+- Duration: 10s / 30s / 1 min / infinite (default infinite).
 - Debug: overlay window bounds visible and a sample toast on screen.
-- Test toast: tray item that pushes a demo card (and plays sound if enabled).
+- Test toast: tray item that pushes a fake `Test` card (and plays sound if enabled).
+- Left-click tray does nothing.
 
 ## Out of scope until asked
 

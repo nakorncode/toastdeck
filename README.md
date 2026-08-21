@@ -2,25 +2,27 @@
 
 Persistent Windows notifications you cannot miss.
 
-This repository is in a **v2 rewrite**. `main` is an unpackaged Tauri 2 + SolidJS tray overlay (scaffold). The shipping WPF app lives on branch [`v1`](https://github.com/nakorncode/toastdeck/tree/v1) and tag [`v1-final`](https://github.com/nakorncode/toastdeck/releases/tag/v1-final).
+This repository is in a **v2 rewrite**. Current `main` may still be docs-only until this branch is merged. The shipping WPF app lives on branch [`v1`](https://github.com/nakorncode/toastdeck/tree/v1) and tag [`v1-final`](https://github.com/nakorncode/toastdeck/releases/tag/v1-final).
 
 ## Status
 
 | Line | What it is |
 | --- | --- |
 | **v1** | Unpackaged .NET WPF app. Captures Windows Notification Center toasts and keeps them on screen. Last release: `v0.1.4`. |
-| **v2 (this branch)** | Tauri 2 + SolidJS tray app. Hidden `"toast"` overlay + tray **Exit**. `solid-sonner`, capture, sounds, and position menus are not in this slice. |
+| **v2 (this branch)** | Tauri 2 + SolidJS + `solid-sonner` tray overlay. Test toast, sounds, 9-point position, duration, debug, startup. No Notification Center capture yet. |
 
 Until a GitHub **Release** is published from this new `main`, installed v1 can keep running. **The first GitHub Release on this `main` takes over the old ToastDesk Windows identity.** Uninstall v1 before that release.
 
 ## v2 shape
 
-- Almost no UI: always-on-top overlay + a tray icon.
-- Current tray: **Exit**. Left-click the tray icon to show or hide the placeholder overlay.
-- Later tray: launch on startup, sound, position, debug overlay, show test toast.
+- Almost no UI: always-on-top Sonner overlay + a tray icon.
+- Right-click tray: **Launch on startup**, **Sound**, **Position**, **Duration**, **Debug overlay**, **Show test toast**, **Exit**.
+- Left-click does nothing. Overlay shows only when a toast exists or debug is on.
 - No settings window. No user-facing main window.
-- Overlay positions (later): 9-point grid on the primary monitor. Default **top-right**.
+- Position: 9-point grid on the primary monitor. Default **top-right**.
+- Duration: 10s / 30s / 1 min / infinite (default infinite).
 - Unpackaged Tauri until capture work needs MSIX.
+- First-run startup is **on** (Run value `ToastDesk.v2`). Disable v1 startup if both would launch.
 
 ## Development
 
