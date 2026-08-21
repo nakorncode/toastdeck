@@ -1,11 +1,12 @@
-use tauri::{AppHandle, Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
+use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, WebviewWindow};
 
 use crate::settings::{AppSettings, OverlayPlacement};
 
-const OVERLAY_WIDTH: f64 = 440.0;
-const OVERLAY_MIN_HEIGHT: f64 = 144.0;
-const OVERLAY_DEBUG_HEIGHT: f64 = 520.0;
-const MARGIN: f64 = 24.0;
+const OVERLAY_WIDTH: f64 = 380.0;
+const PAD: f64 = 12.0;
+const CARD_HEIGHT: f64 = 104.0;
+const GAP: f64 = 12.0;
+const MARGIN: f64 = 16.0;
 
 pub fn sync_overlay(app: &AppHandle, settings: &AppSettings, toast_count: usize) {
     let Some(window) = app.get_webview_window("toast") else {
@@ -18,53 +19,42 @@ pub fn sync_overlay(app: &AppHandle, settings: &AppSettings, toast_count: usize)
         return;
     }
 
-    place_overlay(app, &window, settings, None);
+    place_overlay(&window, app, settings, toast_count.max(1));
     let _ = window.set_always_on_top(true);
     let _ = window.set_ignore_cursor_events(false);
     let _ = show_without_focus(&window);
 }
 
-pub fn resize_for_content(app: &AppHandle, settings: &AppSettings, content_height: f64) {
-    let Some(window) = app.get_webview_window("toast") else {
-        return;
-    };
-    place_overlay(app, &window, settings, Some(content_height));
+fn overlay_height(toast_count: usize) -> f64 {
+    let count = toast_count.max(1) as f64;
+    PAD * 2.0 + count * CARD_HEIGHT + (count - 1.0) * GAP
 }
 
-fn place_overlay(
-    app: &AppHandle,
-    window: &WebviewWindow,
-    settings: &AppSettings,
-    content_height: Option<f64>,
-) {
+fn place_overlay(window: &WebviewWindow, app: &AppHandle, settings: &AppSettings, toast_count: usize) {
     let Some(monitor) = app.primary_monitor().ok().flatten() else {
         return;
     };
     let work_area = monitor.work_area();
-    let scale = monitor.scale_factor();
-    let margin = MARGIN * scale;
-    let width = OVERLAY_WIDTH * scale;
-    let min_height = if settings.debug_overlay {
-        OVERLAY_DEBUG_HEIGHT * scale
-    } else {
-        OVERLAY_MIN_HEIGHT * scale
-    };
-    let max_height = (work_area.size.height as f64 - margin * 2.0).max(min_height);
-    let height = content_height
-        .map(|value| (value * scale).clamp(min_height, max_height))
-        .unwrap_or(min_height);
+    let scale = monitor.scale_factor().max(0.1);
+    let screen_x = work_area.position.x as f64 / scale;
+    let screen_y = work_area.position.y as f64 / scale;
+    let screen_width = work_area.size.width as f64 / scale;
+    let screen_height = work_area.size.height as f64 / scale;
+    let width = OVERLAY_WIDTH;
+    let max_height = (screen_height - MARGIN * 2.0).max(CARD_HEIGHT + PAD * 2.0);
+    let height = overlay_height(toast_count).min(max_height);
     let (x, y) = overlay_position(
         settings.overlay_placement,
-        work_area.position.x as f64,
-        work_area.position.y as f64,
-        work_area.size.width as f64,
-        work_area.size.height as f64,
+        screen_x,
+        screen_y,
+        screen_width,
+        screen_height,
         width,
         height,
-        margin,
+        MARGIN,
     );
-    let _ = window.set_size(PhysicalSize::new(width.round() as u32, height.round() as u32));
-    let _ = window.set_position(PhysicalPosition::new(x as i32, y as i32));
+    let _ = window.set_size(LogicalSize::new(width, height));
+    let _ = window.set_position(LogicalPosition::new(x, y));
 }
 
 fn overlay_position(

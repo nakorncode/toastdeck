@@ -1,3 +1,4 @@
+mod native;
 mod overlay;
 mod settings;
 mod sound;
@@ -145,12 +146,6 @@ fn dismiss_toast(app: AppHandle, id: String) {
     remove_toast(&app, &id);
 }
 
-#[tauri::command]
-fn resize_toast_overlay(app: AppHandle, content_height: f64) {
-    let settings = snapshot(&app).settings;
-    overlay_mod::resize_for_content(&app, &settings, content_height);
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -165,11 +160,7 @@ pub fn run() {
             toasts: Mutex::new(Vec::new()),
             tray: Mutex::new(None),
         })
-        .invoke_handler(tauri::generate_handler![
-            get_overlay_state,
-            dismiss_toast,
-            resize_toast_overlay
-        ])
+        .invoke_handler(tauri::generate_handler![get_overlay_state, dismiss_toast])
         .setup(|app| {
             let mut settings = load_settings();
             if !is_known_preset(&settings.sound_preset) {
@@ -177,6 +168,7 @@ pub fn run() {
             }
             let _ = save_settings(&settings);
             apply_startup(app.handle(), settings.launch_on_startup);
+            native::prepare();
 
             let state = app.state::<AppState>();
             if let Ok(mut current) = state.settings.lock() {

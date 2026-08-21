@@ -218,4 +218,7 @@ fn push_test_toast(app: &AppHandle) {
         "test",
         play_sound,
     );
+    if let Err(error) = crate::native::show("Test", "ToastDesk overlay is working.") {
+        eprintln!("native toast: {error}");
+    }
 }

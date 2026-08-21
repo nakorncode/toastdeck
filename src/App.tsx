@@ -1,4 +1,4 @@
-import { Show, createSignal, onCleanup, onMount } from "solid-js";
+import { createSignal, onCleanup, onMount } from "solid-js";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { Toaster, toast } from "solid-sonner";
@@ -8,8 +8,6 @@ import "./App.css";
 
 const announcedIds = new Set<string>();
 const activeIds = new Set<string>();
-let stageRef: HTMLDivElement | undefined;
-let lastMeasuredHeight = 0;
 
 export default function App() {
   const [state, setState] = createSignal<OverlayState>();
@@ -44,7 +42,6 @@ export default function App() {
         toast.dismiss(id);
       }
     }
-    requestResize();
   }
 
   function showToast(item: OverlayToast, durationMs: number | null) {
@@ -61,56 +58,29 @@ export default function App() {
         activeIds.delete(item.id);
         announcedIds.delete(item.id);
         void invoke("dismiss_toast", { id: item.id });
-        requestResize();
       },
     });
-    requestResize();
-  }
-
-  function requestResize() {
-    window.requestAnimationFrame(() => {
-      measure();
-      window.setTimeout(measure, 120);
-      window.setTimeout(measure, 320);
-    });
-  }
-
-  function measure() {
-    if (!stageRef) return;
-    const nodes = [
-      ...stageRef.querySelectorAll<HTMLElement>("[data-sonner-toaster]"),
-      ...stageRef.querySelectorAll<HTMLElement>("[data-sonner-toast]"),
-    ];
-    if (nodes.length === 0) return;
-    const stageTop = stageRef.getBoundingClientRect().top;
-    const bottoms = nodes.map((node) => node.getBoundingClientRect().bottom - stageTop);
-    const tops = nodes.map((node) => node.getBoundingClientRect().top - stageTop);
-    const height = Math.ceil(Math.max(...bottoms) - Math.min(...tops) + 48);
-    if (!Number.isFinite(height) || height <= 0) return;
-    if (Math.abs(height - lastMeasuredHeight) < 8) return;
-    lastMeasuredHeight = height;
-    void invoke("resize_toast_overlay", { contentHeight: height });
   }
 
   const position = (): SonnerPosition => state()?.sonnerPosition ?? "top-right";
+  const fromBottom = () => position().startsWith("bottom");
 
   return (
     <div
-      ref={(element) => {
-        stageRef = element;
-      }}
       class="overlay"
-      classList={{ debug: state()?.settings.debugOverlay === true }}
+      classList={{
+        debug: state()?.settings.debugOverlay === true,
+        "from-bottom": fromBottom(),
+      }}
     >
-      <Show when={state()?.settings.debugOverlay}>
-        <div class="debug-label">ToastDesk debug bounds</div>
-      </Show>
       <Toaster
         id="overlay"
         position={position()}
         richColors
         closeButton
-        expand={false}
+        expand
+        gap={12}
+        offset={12}
         visibleToasts={4}
         duration={state()?.durationMs ?? Number.POSITIVE_INFINITY}
         pauseWhenPageIsHidden={false}
