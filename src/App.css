@@ -22,27 +22,23 @@ body,
 
 .overlay [data-sonner-toaster] {
   position: absolute !important;
-  inset: 0 !important;
-  width: 100% !important;
+  inset: 12px !important;
+  width: auto !important;
+  height: auto !important;
   max-width: none !important;
-  --width: calc(100% - 24px);
-  pointer-events: none;
-}
-
-.overlay [data-sonner-toaster] ol {
   display: flex !important;
-  flex-direction: column;
+  flex-direction: column !important;
   justify-content: flex-start;
-  gap: 12px;
-  height: 100%;
+  gap: 12px !important;
   margin: 0;
   padding: 0;
   list-style: none;
+  pointer-events: none;
+  --width: 100%;
 }
 
-.overlay.from-bottom [data-sonner-toaster] ol {
-  flex-direction: column-reverse;
-  justify-content: flex-start;
+.overlay.from-bottom [data-sonner-toaster] {
+  flex-direction: column-reverse !important;
 }
 
 .overlay [data-sonner-toast] {
@@ -53,6 +49,8 @@ body,
   top: auto !important;
   bottom: auto !important;
   width: 100% !important;
+  margin: 0 !important;
+  flex-shrink: 0;
   pointer-events: auto;
 }
 

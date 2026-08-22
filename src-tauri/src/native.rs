@@ -18,7 +18,7 @@ pub fn show(title: &str, body: &str) -> Result<(), String> {
     Toast::new(AUMID)
         .title(title)
         .text1(body)
-        .duration(Duration::Short)
+        .duration(Duration::Long)
         .sound(None)
         .show()
         .map_err(|error| format!("Could not send WinRT notification: {error}"))
@@ -59,4 +59,17 @@ fn set_process_aumid() -> Result<(), String> {
 #[cfg(not(windows))]
 pub fn show(_title: &str, _body: &str) -> Result<(), String> {
     Ok(())
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    pub const PROBE_TITLE: &str = "ToastDesk native-loop";
+    pub const PROBE_BODY: &str = "Native toast probe body.";
+
+    #[test]
+    #[ignore = "sends a real Windows notification; run via pnpm native:toast-loop"]
+    fn push_probe_toast() {
+        super::prepare();
+        super::show(PROBE_TITLE, PROBE_BODY).expect("native toast show");
+    }
 }

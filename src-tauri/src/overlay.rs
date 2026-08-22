@@ -4,7 +4,8 @@ use crate::settings::{AppSettings, OverlayPlacement};
 
 const OVERLAY_WIDTH: f64 = 380.0;
 const PAD: f64 = 12.0;
-const CARD_HEIGHT: f64 = 104.0;
+/// Measured from `pnpm overlay:layout-loop` against two solid-sonner cards.
+const CARD_HEIGHT: f64 = 74.0;
 const GAP: f64 = 12.0;
 const MARGIN: f64 = 16.0;
 
@@ -114,4 +115,19 @@ fn show_without_focus(window: &WebviewWindow) -> Result<(), String> {
 #[cfg(not(windows))]
 fn show_without_focus(window: &WebviewWindow) -> Result<(), String> {
     window.show().map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn overlay_height_hugs_two_cards() {
+        assert_eq!(overlay_height(2), 184.0);
+    }
+
+    #[test]
+    fn overlay_height_hugs_one_card() {
+        assert_eq!(overlay_height(1), 98.0);
+    }
 }

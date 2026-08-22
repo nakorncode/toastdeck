@@ -9,10 +9,37 @@ import "./App.css";
 const announcedIds = new Set<string>();
 const activeIds = new Set<string>();
 
+const HARNESS_STATE: OverlayState = {
+  settings: {
+    launchOnStartup: false,
+    soundEnabled: false,
+    soundPreset: "aosp-argon",
+    overlayPlacement: "topRight",
+    cardDuration: "infinite",
+    debugOverlay: true,
+  },
+  toasts: [
+    { id: "t1", title: "Test 1", body: "First card body for layout.", kind: "test" },
+    { id: "t2", title: "Test 2", body: "Second card body for layout.", kind: "test" },
+  ],
+  sonnerPosition: "top-right",
+  durationMs: null,
+};
+
+function isHarness() {
+  return new URLSearchParams(window.location.search).has("harness");
+}
+
 export default function App() {
   const [state, setState] = createSignal<OverlayState>();
 
   onMount(() => {
+    if (isHarness()) {
+      setState(HARNESS_STATE);
+      window.setTimeout(() => syncToasts(HARNESS_STATE), 50);
+      return;
+    }
+
     void refreshState();
     let unlisten: (() => void) | undefined;
     void listen<OverlayState>("toastdesk://state", (event) => {
@@ -57,7 +84,9 @@ export default function App() {
       onDismiss: () => {
         activeIds.delete(item.id);
         announcedIds.delete(item.id);
-        void invoke("dismiss_toast", { id: item.id });
+        if (!isHarness()) {
+          void invoke("dismiss_toast", { id: item.id });
+        }
       },
     });
   }
