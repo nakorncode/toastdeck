@@ -2,12 +2,13 @@ use tauri::menu::{CheckMenuItem, CheckMenuItemBuilder, Menu, MenuBuilder, MenuIt
 use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Manager, Wry};
 
+use crate::capture;
 use crate::overlay;
 use crate::settings::{
     save_settings, AppSettings, CardDuration, OverlayPlacement, DEFAULT_SOUND_PRESET,
 };
 use crate::sound::{self, SOUND_PRESETS};
-use crate::{apply_startup, emit_state, push_toast, remove_toast, snapshot, AppState, DEBUG_TOAST_ID};
+use crate::{apply_startup, emit_state, push_toast, remove_toast, AppState, DEBUG_TOAST_ID, Toast};
 
 pub fn build_tray(app: &AppHandle, settings: &AppSettings) -> tauri::Result<tauri::tray::TrayIcon> {
     let menu = build_menu(app, settings)?;
@@ -38,6 +39,11 @@ fn build_menu(app: &AppHandle, settings: &AppSettings) -> tauri::Result<Menu<Wry
     let startup = CheckMenuItemBuilder::with_id("startup", "Launch on startup")
         .checked(settings.launch_on_startup)
         .build(app)?;
+    let capture = CheckMenuItemBuilder::with_id("capture", "Capture Windows notifications")
+        .checked(settings.windows_capture)
+        .build(app)?;
+    let capture_retry =
+        MenuItemBuilder::with_id("capture-retry", "Retry notification access").build(app)?;
     let debug = CheckMenuItemBuilder::with_id("debug", "Debug overlay")
         .checked(settings.debug_overlay)
         .build(app)?;
@@ -53,6 +59,8 @@ fn build_menu(app: &AppHandle, settings: &AppSettings) -> tauri::Result<Menu<Wry
         .item(&sound)
         .item(&position)
         .item(&duration)
+        .item(&capture)
+        .item(&capture_retry)
         .item(&debug)
         .item(&test_toast)
         .item(&quit)
@@ -127,6 +135,10 @@ fn handle_menu_event(app: &AppHandle, id: &str) {
     match id {
         "quit" => app.exit(0),
         "test-toast" => push_test_toast(app),
+        "capture-retry" => capture::request_retry(app),
+        "capture" => update_settings(app, |settings| {
+            settings.windows_capture = !settings.windows_capture;
+        }),
         "startup" => update_settings(app, |settings| {
             settings.launch_on_startup = !settings.launch_on_startup;
         }),
@@ -190,10 +202,12 @@ fn sync_debug_toast(app: &AppHandle, debug: bool) {
     if debug {
         push_toast(
             app,
-            DEBUG_TOAST_ID,
-            "Debug",
-            "Overlay bounds are visible.",
-            "debug",
+            Toast::overlay(
+                DEBUG_TOAST_ID,
+                "Debug",
+                "Overlay bounds are visible.",
+                "debug",
+            ),
             false,
         );
     } else {
@@ -201,23 +215,7 @@ fn sync_debug_toast(app: &AppHandle, debug: bool) {
     }
 }
 
-fn push_test_toast(app: &AppHandle) {
-    let id = format!(
-        "test-{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|duration| duration.as_millis())
-            .unwrap_or_default()
-    );
-    let play_sound = snapshot(app).settings.sound_enabled;
-    push_toast(
-        app,
-        &id,
-        "Test",
-        "ToastDesk overlay is working.",
-        "test",
-        play_sound,
-    );
+fn push_test_toast(_app: &AppHandle) {
     if let Err(error) = crate::native::show("Test", "ToastDesk overlay is working.") {
         eprintln!("native toast: {error}");
     }

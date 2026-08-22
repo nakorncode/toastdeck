@@ -9,14 +9,15 @@ This repository is in a **v2 rewrite**. Current `main` may still be docs-only un
 | Line | What it is |
 | --- | --- |
 | **v1** | Unpackaged .NET WPF app. Captures Windows Notification Center toasts and keeps them on screen. Last release: `v0.1.4`. |
-| **v2 (this branch)** | Tauri 2 + SolidJS + `solid-sonner` tray overlay. Test toast, sounds, 9-point position, duration, debug, startup. No Notification Center capture yet. |
+| **v2 (this branch)** | Tauri 2 + SolidJS + `solid-sonner` tray overlay. Local unpackaged daily driver: Notification Center capture, test toast, sounds, 9-point position, duration, debug, startup. Needs Windows notification access. Not a GitHub Release; v1 remains the shipped identity. |
 
 Until a GitHub **Release** is published from this new `main`, installed v1 can keep running. **The first GitHub Release on this `main` takes over the old ToastDesk Windows identity.** Uninstall v1 before that release.
 
 ## v2 shape
 
 - Almost no UI: always-on-top Sonner overlay + a tray icon.
-- Right-click tray: **Launch on startup**, **Sound**, **Position**, **Duration**, **Debug overlay**, **Show test toast**, **Exit**.
+- Right-click tray: **Launch on startup**, **Sound**, **Position**, **Duration**, **Capture Windows notifications**, **Retry notification access**, **Debug overlay**, **Show test toast**, **Exit**.
+- Capture needs Windows notification access. Existing Action Center toasts are not replayed on launch. Click a card to open the source app; × dismisses locally (Notification Center is unchanged).
 - Left-click does nothing. Overlay shows only when a toast exists or debug is on.
 - No settings window. No user-facing main window.
 - Position: 9-point grid on the primary monitor. Default **top-right**.

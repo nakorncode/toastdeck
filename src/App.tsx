@@ -8,6 +8,7 @@ import "./App.css";
 
 const announcedIds = new Set<string>();
 const activeIds = new Set<string>();
+const openingIds = new Set<string>();
 
 const HARNESS_STATE: OverlayState = {
   settings: {
@@ -17,6 +18,7 @@ const HARNESS_STATE: OverlayState = {
     overlayPlacement: "topRight",
     cardDuration: "infinite",
     debugOverlay: true,
+    windowsCapture: false,
   },
   toasts: [
     { id: "t1", title: "Test 1", body: "First card body for layout.", kind: "test" },
@@ -81,14 +83,34 @@ export default function App() {
       description: item.body,
       duration: durationMs ?? Number.POSITIVE_INFINITY,
       closeButton: true,
+      testId: item.id,
       onDismiss: () => {
         activeIds.delete(item.id);
         announcedIds.delete(item.id);
-        if (!isHarness()) {
+        const opened = openingIds.has(item.id);
+        openingIds.delete(item.id);
+        if (!isHarness() && !opened) {
           void invoke("dismiss_toast", { id: item.id });
         }
       },
     });
+  }
+
+  function handleOverlayClick(event: MouseEvent) {
+    const target = event.target as HTMLElement | null;
+    if (!target || target.closest("button") || isHarness()) {
+      return;
+    }
+    const card = target.closest("[data-sonner-toast]");
+    if (!(card instanceof HTMLElement)) {
+      return;
+    }
+    const id = card.getAttribute("data-testid");
+    if (!id || id === "debug-sample" || id === "capture-denied") {
+      return;
+    }
+    openingIds.add(id);
+    void invoke("open_toast", { id });
   }
 
   const position = (): SonnerPosition => state()?.sonnerPosition ?? "top-right";
@@ -101,6 +123,7 @@ export default function App() {
         debug: state()?.settings.debugOverlay === true,
         "from-bottom": fromBottom(),
       }}
+      onClick={handleOverlayClick}
     >
       <Toaster
         id="overlay"

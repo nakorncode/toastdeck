@@ -1,3 +1,4 @@
+mod capture;
 mod native;
 mod overlay;
 mod settings;
@@ -5,6 +6,8 @@ mod sound;
 mod tray;
 
 use serde::Serialize;
+use std::collections::HashSet;
+use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_autostart::ManagerExt;
@@ -20,6 +23,10 @@ pub struct AppState {
     pub settings: Mutex<AppSettings>,
     pub toasts: Mutex<Vec<Toast>>,
     pub tray: Mutex<Option<tauri::tray::TrayIcon>>,
+    pub captured_ids: Mutex<HashSet<u32>>,
+    pub capture_access: Mutex<capture::CaptureAccess>,
+    pub capture_retry: AtomicBool,
+    pub capture_denied_announced: AtomicBool,
 }
 
 #[derive(Clone, Serialize)]
@@ -29,6 +36,24 @@ pub struct Toast {
     pub title: String,
     pub body: String,
     pub kind: String,
+    pub source_app_user_model_id: Option<String>,
+}
+
+impl Toast {
+    pub fn overlay(
+        id: impl Into<String>,
+        title: impl Into<String>,
+        body: impl Into<String>,
+        kind: impl Into<String>,
+    ) -> Self {
+        Self {
+            id: id.into(),
+            title: title.into(),
+            body: body.into(),
+            kind: kind.into(),
+            source_app_user_model_id: None,
+        }
+    }
 }
 
 #[derive(Clone, Serialize)]
@@ -83,21 +108,13 @@ fn apply_startup(app: &AppHandle, enabled: bool) {
     }
 }
 
-fn push_toast(app: &AppHandle, id: &str, title: &str, body: &str, kind: &str, play_sound: bool) {
+pub(crate) fn push_toast(app: &AppHandle, toast: Toast, play_sound: bool) {
     let state = app.state::<AppState>();
     if let Ok(mut toasts) = state.toasts.lock() {
-        toasts.retain(|toast| toast.id != id);
-        toasts.insert(
-            0,
-            Toast {
-                id: id.to_string(),
-                title: title.to_string(),
-                body: body.to_string(),
-                kind: kind.to_string(),
-            },
-        );
+        toasts.retain(|item| item.id != toast.id);
+        toasts.insert(0, toast);
         if toasts.len() > MAX_TOASTS {
-            if let Some(index) = toasts.iter().rposition(|toast| toast.id != DEBUG_TOAST_ID) {
+            if let Some(index) = toasts.iter().rposition(|item| item.id != DEBUG_TOAST_ID) {
                 toasts.remove(index);
             } else {
                 toasts.pop();
@@ -121,7 +138,7 @@ fn push_toast(app: &AppHandle, id: &str, title: &str, body: &str, kind: &str, pl
     emit_state(app);
 }
 
-fn remove_toast(app: &AppHandle, id: &str) {
+pub(crate) fn remove_toast(app: &AppHandle, id: &str) {
     let state = app.state::<AppState>();
     if let Ok(mut toasts) = state.toasts.lock() {
         toasts.retain(|toast| toast.id != id);
@@ -136,6 +153,27 @@ fn remove_toast(app: &AppHandle, id: &str) {
     emit_state(app);
 }
 
+fn open_captured_toast(app: &AppHandle, id: &str) {
+    if id == DEBUG_TOAST_ID || id == capture::CAPTURE_DENIED_ID {
+        return;
+    }
+    let aumid = {
+        let state = app.state::<AppState>();
+        state.toasts.lock().ok().and_then(|toasts| {
+            toasts
+                .iter()
+                .find(|toast| toast.id == id)
+                .and_then(|toast| toast.source_app_user_model_id.clone())
+        })
+    };
+    if let Some(aumid) = aumid {
+        if let Err(error) = capture::open_source_app(&aumid) {
+            eprintln!("open toast: {error}");
+        }
+    }
+    remove_toast(app, id);
+}
+
 #[tauri::command]
 fn get_overlay_state(app: AppHandle) -> OverlayState {
     snapshot(&app)
@@ -144,6 +182,11 @@ fn get_overlay_state(app: AppHandle) -> OverlayState {
 #[tauri::command]
 fn dismiss_toast(app: AppHandle, id: String) {
     remove_toast(&app, &id);
+}
+
+#[tauri::command]
+fn open_toast(app: AppHandle, id: String) {
+    open_captured_toast(&app, &id);
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -159,8 +202,16 @@ pub fn run() {
             settings: Mutex::new(AppSettings::default()),
             toasts: Mutex::new(Vec::new()),
             tray: Mutex::new(None),
+            captured_ids: Mutex::new(HashSet::new()),
+            capture_access: Mutex::new(capture::CaptureAccess::Disabled),
+            capture_retry: AtomicBool::new(false),
+            capture_denied_announced: AtomicBool::new(false),
         })
-        .invoke_handler(tauri::generate_handler![get_overlay_state, dismiss_toast])
+        .invoke_handler(tauri::generate_handler![
+            get_overlay_state,
+            dismiss_toast,
+            open_toast
+        ])
         .setup(|app| {
             let mut settings = load_settings();
             if !is_known_preset(&settings.sound_preset) {
@@ -183,15 +234,19 @@ pub fn run() {
             if settings.debug_overlay {
                 push_toast(
                     app.handle(),
-                    DEBUG_TOAST_ID,
-                    "Debug",
-                    "Overlay bounds are visible.",
-                    "debug",
+                    Toast::overlay(
+                        DEBUG_TOAST_ID,
+                        "Debug",
+                        "Overlay bounds are visible.",
+                        "debug",
+                    ),
                     false,
                 );
             } else {
                 overlay_mod::sync_overlay(app.handle(), &settings, 0);
             }
+
+            capture::start(app.handle().clone());
 
             Ok(())
         })

@@ -52,6 +52,7 @@ body,
   margin: 0 !important;
   flex-shrink: 0;
   pointer-events: auto;
+  cursor: pointer;
 }
 
 .overlay [data-sonner-toast] button {

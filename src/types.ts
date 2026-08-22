@@ -26,6 +26,7 @@ export type AppSettings = {
   overlayPlacement: OverlayPlacement;
   cardDuration: CardDuration;
   debugOverlay: boolean;
+  windowsCapture: boolean;
 };
 
 export type Toast = {
@@ -33,6 +34,7 @@ export type Toast = {
   title: string;
   body: string;
   kind: string;
+  sourceAppUserModelId?: string | null;
 };
 
 export type OverlayState = {

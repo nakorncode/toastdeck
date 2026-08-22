@@ -3,6 +3,10 @@ use std::{fs, path::PathBuf};
 
 pub const DEFAULT_SOUND_PRESET: &str = "aosp-argon";
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum OverlayPlacement {
@@ -121,6 +125,8 @@ pub struct AppSettings {
     pub overlay_placement: OverlayPlacement,
     pub card_duration: CardDuration,
     pub debug_overlay: bool,
+    #[serde(default = "default_true")]
+    pub windows_capture: bool,
 }
 
 impl Default for AppSettings {
@@ -132,6 +138,7 @@ impl Default for AppSettings {
             overlay_placement: OverlayPlacement::TopRight,
             card_duration: CardDuration::Infinite,
             debug_overlay: false,
+            windows_capture: true,
         }
     }
 }
@@ -158,4 +165,23 @@ pub fn save_settings(settings: &AppSettings) -> Result<(), String> {
     }
     let bytes = serde_json::to_vec_pretty(settings).map_err(|error| error.to_string())?;
     fs::write(path, bytes).map_err(|error| error.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_windows_capture_defaults_on() {
+        let json = r#"{
+            "launchOnStartup": true,
+            "soundEnabled": true,
+            "soundPreset": "aosp-argon",
+            "overlayPlacement": "topRight",
+            "cardDuration": "infinite",
+            "debugOverlay": false
+        }"#;
+        let settings: AppSettings = serde_json::from_str(json).expect("legacy settings");
+        assert!(settings.windows_capture);
+    }
 }

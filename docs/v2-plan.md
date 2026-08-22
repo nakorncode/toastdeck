@@ -21,8 +21,8 @@ v1 (WPF) is a working notification-capture app. v2 is a rewrite: Tauri 2 + Solid
 
 1. **Docs-only root.** Done (`595dc3d`).
 2. **Scaffold.** Done on `cursor/toastdesk-v2-tauri-scaffold`.
-3. **Overlay MVP (current).** `solid-sonner`, test toast, AOSP sounds, 9-point position, duration submenu, debug bounds, launch on startup.
-4. **Capture.** Port behavior from branch `v1` (UserNotificationListener, permission, dedupe, open/dismiss) into Rust. Decide MSIX then. Do not start from a TrayBits file dump.
+3. **Overlay MVP.** Done on `cursor/toastdesk-v2-tauri-scaffold` (`solid-sonner`, test toast, AOSP sounds, 9-point position, duration submenu, debug bounds, launch on startup).
+4. **Capture (current).** Port behavior from branch `v1` (UserNotificationListener, permission, dedupe, open/dismiss) into Rust on this branch. Local unpackaged daily driver; identity stays `ToastDesk.v2`. Decide MSIX later. Do not start from a TrayBits file dump.
 5. **Identity cutover.** First GitHub **Release** on this `main` takes the old ToastDesk identity. Uninstall v1 first. Overlay-only may be that release if a Release is published before capture exists.
 
 ## TrayBits
@@ -43,7 +43,8 @@ v1 WPF remains the capture spec (event + polling hybrid, unpackaged listener, ov
 - Sound: on/off plus eight AOSP WAV presets (default Argon).
 - Duration: 10s / 30s / 1 min / infinite (default infinite).
 - Debug: overlay window bounds visible and a sample toast on screen.
-- Test toast: tray item that pushes a fake `Test` card (and plays sound if enabled).
+- Test toast: tray item that sends a WinRT `Test` toast; capture renders it on the overlay (and plays sound if enabled).
+- Capture: tray check **Capture Windows notifications** (default on) plus **Retry notification access**. Dismiss is local; click opens the source app by AUMID.
 - Left-click tray does nothing.
 
 ## Out of scope until asked

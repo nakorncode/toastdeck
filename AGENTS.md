@@ -4,7 +4,7 @@ These instructions apply to `G:\NakornCode\git\toastdeck` on **v2** (`main` afte
 
 ## What this tree is
 
-Unpackaged Tauri 2 + SolidJS + `solid-sonner` tray overlay. Tray settings, test toast, sounds, 9-point placement, duration, debug bounds. No Windows notification capture yet.
+Unpackaged Tauri 2 + SolidJS + `solid-sonner` tray overlay. Tray settings, Windows notification capture, test toast, sounds, 9-point placement, duration, debug bounds. Identity stays `ToastDesk.v2` until a GitHub Release.
 
 WPF v1 is **read-only** on branch `v1` / tag `v1-final`. TrayBits is a pattern, not a file dump.
 
@@ -28,8 +28,8 @@ The first GitHub Release on `main` **steals** the old ToastDesk identity. Uninst
 - No user-facing main window. Overlay `"toast"` only.
 - Left-click tray does nothing. Right-click the tray for settings.
 - Overlay is visible only when a toast exists or debug is on.
-- Tray: Launch on startup · Sound (on/off + 8 AOSP presets, default Argon) · Position (9-point, primary) · Duration (10s / 30s / 1 min / infinite) · Debug overlay · Show test toast · Exit.
-- First run: sound on, startup on, top-right, debug off, duration infinite.
+- Tray: Launch on startup · Sound (on/off + 8 AOSP presets, default Argon) · Position (9-point, primary) · Duration (10s / 30s / 1 min / infinite) · Capture Windows notifications · Retry notification access · Debug overlay · Show test toast · Exit.
+- First run: sound on, startup on, top-right, debug off, duration infinite, capture on.
 - Test toast is obviously fake (`Test`). Debug uses bounds fill + a sample toast, not a decorated window.
 
 ## Working style
