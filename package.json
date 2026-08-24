@@ -13,6 +13,7 @@
     "serve": "vite preview",
     "tauri": "node ./scripts/with-cargo.mjs",
     "overlay:layout-loop": "node ./scripts/overlay-layout-loop.mjs",
+    "overlay:long-loop": "pnpm build && node ./scripts/overlay-long-loop.mjs",
     "native:toast-loop": "node ./scripts/native-toast-loop.mjs"
   },
   "license": "MIT",

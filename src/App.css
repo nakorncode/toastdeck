@@ -65,4 +65,5 @@ body,
 
 .overlay-toast-body {
   opacity: 0.9;
+  white-space: pre-line;
 }

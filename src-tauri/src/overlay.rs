@@ -4,12 +4,18 @@ use crate::settings::{AppSettings, OverlayPlacement};
 
 const OVERLAY_WIDTH: f64 = 380.0;
 const PAD: f64 = 12.0;
-/// Measured from `pnpm overlay:layout-loop` against two solid-sonner cards.
+/// Fallback when the frontend has not reported the rendered stack yet.
+/// Short two-line cards from `pnpm overlay:layout-loop`.
 const CARD_HEIGHT: f64 = 74.0;
 const GAP: f64 = 12.0;
 const MARGIN: f64 = 16.0;
 
-pub fn sync_overlay(app: &AppHandle, settings: &AppSettings, toast_count: usize) {
+pub fn sync_overlay(
+    app: &AppHandle,
+    settings: &AppSettings,
+    toast_count: usize,
+    content_height: Option<f64>,
+) {
     let Some(window) = app.get_webview_window("toast") else {
         return;
     };
@@ -20,18 +26,29 @@ pub fn sync_overlay(app: &AppHandle, settings: &AppSettings, toast_count: usize)
         return;
     }
 
-    place_overlay(&window, app, settings, toast_count.max(1));
+    place_overlay(&window, app, settings, toast_count.max(1), content_height);
     let _ = window.set_always_on_top(true);
     let _ = window.set_ignore_cursor_events(false);
     let _ = show_without_focus(&window);
 }
 
-fn overlay_height(toast_count: usize) -> f64 {
+fn overlay_height(toast_count: usize, content_height: Option<f64>) -> f64 {
+    if let Some(height) = content_height {
+        if height.is_finite() && height > 0.0 {
+            return height;
+        }
+    }
     let count = toast_count.max(1) as f64;
     PAD * 2.0 + count * CARD_HEIGHT + (count - 1.0) * GAP
 }
 
-fn place_overlay(window: &WebviewWindow, app: &AppHandle, settings: &AppSettings, toast_count: usize) {
+fn place_overlay(
+    window: &WebviewWindow,
+    app: &AppHandle,
+    settings: &AppSettings,
+    toast_count: usize,
+    content_height: Option<f64>,
+) {
     let Some(monitor) = app.primary_monitor().ok().flatten() else {
         return;
     };
@@ -43,7 +60,7 @@ fn place_overlay(window: &WebviewWindow, app: &AppHandle, settings: &AppSettings
     let screen_height = work_area.size.height as f64 / scale;
     let width = OVERLAY_WIDTH;
     let max_height = (screen_height - MARGIN * 2.0).max(CARD_HEIGHT + PAD * 2.0);
-    let height = overlay_height(toast_count).min(max_height);
+    let height = overlay_height(toast_count, content_height).min(max_height);
     let (x, y) = overlay_position(
         settings.overlay_placement,
         screen_x,
@@ -123,11 +140,16 @@ mod tests {
 
     #[test]
     fn overlay_height_hugs_two_cards() {
-        assert_eq!(overlay_height(2), 184.0);
+        assert_eq!(overlay_height(2, None), 184.0);
     }
 
     #[test]
     fn overlay_height_hugs_one_card() {
-        assert_eq!(overlay_height(1), 98.0);
+        assert_eq!(overlay_height(1, None), 98.0);
+    }
+
+    #[test]
+    fn overlay_height_uses_measured_content() {
+        assert_eq!(overlay_height(1, Some(134.0)), 134.0);
     }
 }

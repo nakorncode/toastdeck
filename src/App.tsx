@@ -9,17 +9,52 @@ import "./App.css";
 const announcedIds = new Set<string>();
 const activeIds = new Set<string>();
 const openingIds = new Set<string>();
+const OVERLAY_PAD = 12;
+let lastReportedHeight: number | null = null;
 
-const HARNESS_STATE: OverlayState = {
-  settings: {
-    launchOnStartup: false,
-    soundEnabled: false,
-    soundPreset: "aosp-argon",
-    overlayPlacement: "topRight",
-    cardDuration: "infinite",
-    debugOverlay: true,
-    windowsCapture: false,
-  },
+function measuredOverlayHeight(): number | null {
+  const cards = [...document.querySelectorAll("[data-sonner-toast]")];
+  if (cards.length === 0) return null;
+  let top = Infinity;
+  let bottom = -Infinity;
+  for (const card of cards) {
+    const rect = card.getBoundingClientRect();
+    top = Math.min(top, rect.top);
+    bottom = Math.max(bottom, rect.bottom);
+  }
+  return Math.ceil(bottom - top + OVERLAY_PAD * 2);
+}
+
+function reportOverlayHeight() {
+  if (isHarness()) return;
+  const height = measuredOverlayHeight();
+  if (height == null) {
+    lastReportedHeight = null;
+    return;
+  }
+  if (height === lastReportedHeight) return;
+  lastReportedHeight = height;
+  void invoke("report_overlay_height", { height }).catch(() => {});
+}
+
+function scheduleOverlayHeightReport() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(reportOverlayHeight);
+  });
+}
+
+const HARNESS_SETTINGS: OverlayState["settings"] = {
+  launchOnStartup: false,
+  soundEnabled: false,
+  soundPreset: "aosp-argon",
+  overlayPlacement: "topRight",
+  cardDuration: "infinite",
+  debugOverlay: true,
+  windowsCapture: false,
+};
+
+const HARNESS_STACK: OverlayState = {
+  settings: HARNESS_SETTINGS,
   toasts: [
     { id: "t1", title: "Test 1", body: "First card body for layout.", kind: "test" },
     { id: "t2", title: "Test 2", body: "Second card body for layout.", kind: "test" },
@@ -28,17 +63,48 @@ const HARNESS_STATE: OverlayState = {
   durationMs: null,
 };
 
+const HARNESS_SHORT: OverlayState = {
+  settings: HARNESS_SETTINGS,
+  toasts: [{ id: "short", title: "Test 1", body: "First card body for layout.", kind: "test" }],
+  sonnerPosition: "top-right",
+  durationMs: null,
+};
+
+const HARNESS_LONG: OverlayState = {
+  settings: HARNESS_SETTINGS,
+  toasts: [
+    {
+      id: "long-4",
+      title: "Calendar",
+      body: "Standup with design\nBring the Q3 deck\nRoom 4B at 10:30",
+      kind: "test",
+    },
+  ],
+  sonnerPosition: "top-right",
+  durationMs: null,
+};
+
+function harnessState(): OverlayState | undefined {
+  const harness = new URLSearchParams(window.location.search).get("harness");
+  if (harness === "long") return HARNESS_LONG;
+  if (harness === "short") return HARNESS_SHORT;
+  if (harness === "1" || harness === "stack") return HARNESS_STACK;
+  return undefined;
+}
+
 function isHarness() {
-  return new URLSearchParams(window.location.search).has("harness");
+  return harnessState() !== undefined;
 }
 
 export default function App() {
   const [state, setState] = createSignal<OverlayState>();
+  let overlayEl: HTMLDivElement | undefined;
 
   onMount(() => {
-    if (isHarness()) {
-      setState(HARNESS_STATE);
-      window.setTimeout(() => syncToasts(HARNESS_STATE), 50);
+    const harness = harnessState();
+    if (harness) {
+      setState(harness);
+      window.setTimeout(() => syncToasts(harness), 50);
       return;
     }
 
@@ -50,7 +116,14 @@ export default function App() {
     }).then((fn) => {
       unlisten = fn;
     });
-    onCleanup(() => unlisten?.());
+    const observer = new MutationObserver(() => scheduleOverlayHeightReport());
+    if (overlayEl) {
+      observer.observe(overlayEl, { childList: true, subtree: true, characterData: true });
+    }
+    onCleanup(() => {
+      unlisten?.();
+      observer.disconnect();
+    });
   });
 
   async function refreshState() {
@@ -71,6 +144,7 @@ export default function App() {
         toast.dismiss(id);
       }
     }
+    scheduleOverlayHeightReport();
   }
 
   function showToast(item: OverlayToast, durationMs: number | null) {
@@ -118,6 +192,9 @@ export default function App() {
 
   return (
     <div
+      ref={(el) => {
+        overlayEl = el;
+      }}
       class="overlay"
       classList={{
         debug: state()?.settings.debugOverlay === true,

@@ -194,7 +194,7 @@ fn update_settings(app: &AppHandle, mutate: impl FnOnce(&mut AppSettings)) {
     sync_debug_toast(app, snapshot.debug_overlay);
     let _ = refresh_menu(app, &snapshot);
     let toast_count = state.toasts.lock().map(|toasts| toasts.len()).unwrap_or(0);
-    overlay::sync_overlay(app, &snapshot, toast_count);
+    overlay::sync_overlay(app, &snapshot, toast_count, crate::overlay_content_height(app));
     emit_state(app);
 }
 

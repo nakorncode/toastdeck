@@ -27,6 +27,7 @@ pub struct AppState {
     pub capture_access: Mutex<capture::CaptureAccess>,
     pub capture_retry: AtomicBool,
     pub capture_denied_announced: AtomicBool,
+    pub overlay_content_height: Mutex<Option<f64>>,
 }
 
 #[derive(Clone, Serialize)]
@@ -134,8 +135,16 @@ pub(crate) fn push_toast(app: &AppHandle, toast: Toast, play_sound: bool) {
         .map(|settings| settings.clone())
         .unwrap_or_default();
     let count = state.toasts.lock().map(|toasts| toasts.len()).unwrap_or(0);
-    overlay_mod::sync_overlay(app, &settings, count);
+    overlay_mod::sync_overlay(app, &settings, count, overlay_content_height(app));
     emit_state(app);
+}
+
+pub(crate) fn overlay_content_height(app: &AppHandle) -> Option<f64> {
+    app.state::<AppState>()
+        .overlay_content_height
+        .lock()
+        .ok()
+        .and_then(|height| *height)
 }
 
 pub(crate) fn remove_toast(app: &AppHandle, id: &str) {
@@ -149,7 +158,12 @@ pub(crate) fn remove_toast(app: &AppHandle, id: &str) {
         .map(|settings| settings.clone())
         .unwrap_or_default();
     let count = state.toasts.lock().map(|toasts| toasts.len()).unwrap_or(0);
-    overlay_mod::sync_overlay(app, &settings, count);
+    if count == 0 {
+        if let Ok(mut height) = state.overlay_content_height.lock() {
+            *height = None;
+        }
+    }
+    overlay_mod::sync_overlay(app, &settings, count, overlay_content_height(app));
     emit_state(app);
 }
 
@@ -189,6 +203,26 @@ fn open_toast(app: AppHandle, id: String) {
     open_captured_toast(&app, &id);
 }
 
+#[tauri::command]
+fn report_overlay_height(app: AppHandle, height: f64) {
+    if let Ok(mut current) = app.state::<AppState>().overlay_content_height.lock() {
+        *current = (height.is_finite() && height > 0.0).then_some(height);
+    }
+    let settings = app
+        .state::<AppState>()
+        .settings
+        .lock()
+        .map(|settings| settings.clone())
+        .unwrap_or_default();
+    let count = app
+        .state::<AppState>()
+        .toasts
+        .lock()
+        .map(|toasts| toasts.len())
+        .unwrap_or(0);
+    overlay_mod::sync_overlay(&app, &settings, count, overlay_content_height(&app));
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -206,11 +240,13 @@ pub fn run() {
             capture_access: Mutex::new(capture::CaptureAccess::Disabled),
             capture_retry: AtomicBool::new(false),
             capture_denied_announced: AtomicBool::new(false),
+            overlay_content_height: Mutex::new(None),
         })
         .invoke_handler(tauri::generate_handler![
             get_overlay_state,
             dismiss_toast,
-            open_toast
+            open_toast,
+            report_overlay_height
         ])
         .setup(|app| {
             let mut settings = load_settings();
@@ -243,7 +279,7 @@ pub fn run() {
                     false,
                 );
             } else {
-                overlay_mod::sync_overlay(app.handle(), &settings, 0);
+                overlay_mod::sync_overlay(app.handle(), &settings, 0, None);
             }
 
             capture::start(app.handle().clone());
