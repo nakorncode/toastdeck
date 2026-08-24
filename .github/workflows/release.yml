@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Existing tag to release, for example v0.2.0-pre.1"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Resolve release tag
+        id: release_tag
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            "tag=${{ inputs.tag_name }}" >> $env:GITHUB_OUTPUT
+          } else {
+            "tag=${{ github.ref_name }}" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release_tag.outputs.tag }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build NSIS and MSI installers
+        run: pnpm tauri build --bundles nsis,msi --ci --no-sign
+
+      - name: Package release assets
+        shell: pwsh
+        run: ./scripts/package-release.ps1 -ProductVersion "${{ steps.release_tag.outputs.tag }}"
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          name: ToastDesk ${{ steps.release_tag.outputs.tag }}
+          files: artifacts/release/ToastDesk-*
+          generate_release_notes: true
+          prerelease: ${{ contains(steps.release_tag.outputs.tag, '-') }}
+          make_latest: false

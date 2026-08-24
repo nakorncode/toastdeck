@@ -22,7 +22,7 @@ v1 (WPF) is a working notification-capture app. v2 is a rewrite: Tauri 2 + Solid
 1. **Docs-only root.** Done (`595dc3d`).
 2. **Scaffold.** Done on `cursor/toastdesk-v2-tauri-scaffold`.
 3. **Overlay MVP.** Done on `cursor/toastdesk-v2-tauri-scaffold` (`solid-sonner`, test toast, AOSP sounds, 9-point position, duration submenu, debug bounds, launch on startup).
-4. **Capture.** Done on `main` as a local unpackaged daily driver (UserNotificationListener, permission, dedupe, open/dismiss). Identity stays `ToastDesk.v2`. Decide MSIX later. Do not start from a TrayBits file dump.
+4. **Capture.** Done on `main` as a local unpackaged daily driver (UserNotificationListener, permission, dedupe, open/dismiss). Identity stays `ToastDesk.v2`. Windows installers are NSIS + MSI via GitHub Actions. Decide MSIX later. Do not start from a TrayBits file dump.
 5. **Identity cutover.** The first **non-prerelease** GitHub Release on this `main` takes the old ToastDesk identity. Uninstall v1 first. **Pre-releases keep `ToastDesk.v2`** so v1 can stay installed. `v0.1.4` remains GitHub Latest until that cutover.
 
 ## TrayBits

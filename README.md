@@ -22,12 +22,14 @@ Until a **non-prerelease** GitHub Release is published from this `main`, install
 - No settings window. No user-facing main window.
 - Position: 9-point grid on the primary monitor. Default **top-right**.
 - Duration: 10s / 30s / 1 min / infinite (default infinite).
-- Unpackaged Tauri until capture work needs MSIX.
+- Unpackaged Tauri for local `pnpm tauri dev`. GitHub pre-releases ship NSIS (Setup.exe) and MSI. MSIX is still out of scope.
 - First-run startup is **on** (Run value `ToastDesk.v2`). Disable v1 startup if both would launch.
 
 ## Download (v2 pre-release)
 
-Pre-release portable zip: [GitHub Releases](https://github.com/nakorncode/toastdeck/releases) tagged `v0.2.0-pre.*` (not Latest). Unzip and run `ToastDesk.exe`. Requires [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/). Grant Windows notification access from the tray (**Retry notification access**) if capture is empty.
+Pre-releases: [GitHub Releases](https://github.com/nakorncode/toastdeck/releases) tagged `v0.2.0-pre.*` (not Latest). Prefer **Setup.exe** (NSIS, per-user) or **MSI**. A portable zip is still attached. Requires [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/). Grant Windows notification access from the tray (**Retry notification access**) if capture is empty.
+
+Push a `v*.*.*` tag (or run **Release** → workflow_dispatch with that tag) to build installers. Tags with a hyphen (for example `v0.2.0-pre.1`) stay pre-release and do not replace GitHub Latest.
 
 ## Development
 
@@ -45,7 +47,12 @@ pnpm check
 cargo check --manifest-path .\src-tauri\Cargo.toml
 ```
 
-The no-bundle executable is written to `src-tauri\target\release\ToastDesk.exe` after `pnpm tauri build --no-bundle`.
+The no-bundle executable is written to `src-tauri\target\release\ToastDesk.exe` after `pnpm tauri build --no-bundle`. Installers:
+
+```powershell
+pnpm tauri build --bundles nsis,msi --ci --no-sign
+./scripts/package-release.ps1 -ProductVersion v0.2.0-pre.1
+```
 
 ## Run v1 from this clone
 

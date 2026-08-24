@@ -7,6 +7,8 @@ node_modules/
 dist/
 src-tauri/target/
 .pnpm-store/
+dist-release/
+*.log
 *.log
 .DS_Store
 Thumbs.db
