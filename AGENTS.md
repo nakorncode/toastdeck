@@ -4,13 +4,13 @@ These instructions apply to `G:\NakornCode\git\toastdeck` on **v2** (`main` afte
 
 ## What this tree is
 
-Unpackaged Tauri 2 + SolidJS + `solid-sonner` tray overlay. Tray settings, Windows notification capture, test toast, sounds, 9-point placement, duration, debug bounds. Identity stays `ToastDesk.v2` until a GitHub Release.
+Unpackaged Tauri 2 + SolidJS + `solid-sonner` tray overlay. Tray settings, Windows notification capture, test toast, sounds, 9-point placement, duration, debug bounds. Identity stays `ToastDesk.v2` until a non-prerelease GitHub Release on `main`.
 
 WPF v1 is **read-only** on branch `v1` / tag `v1-final`. TrayBits is a pattern, not a file dump.
 
 ## Identity
 
-Until the first GitHub **Release** on `main`, v2 uses a separate identity:
+Until the first **non-prerelease** GitHub Release on `main`, v2 uses a separate identity:
 
 | Key | Value |
 | --- | --- |
@@ -21,7 +21,7 @@ Until the first GitHub **Release** on `main`, v2 uses a separate identity:
 | Tauri identifier | `com.nakorncode.toastdesk.v2` |
 | Executable | `ToastDesk.exe` |
 
-The first GitHub Release on `main` **steals** the old ToastDesk identity. Uninstall v1 before that release.
+The first **non-prerelease** GitHub Release on `main` **steals** the old ToastDesk identity. Uninstall v1 before that release. Pre-releases (`v0.2.0-pre.*`) keep `ToastDesk.v2`.
 
 ## Locked product shape
 

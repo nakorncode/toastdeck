@@ -2,16 +2,16 @@
 
 Persistent Windows notifications you cannot miss.
 
-This repository is in a **v2 rewrite**. Current `main` may still be docs-only until this branch is merged. The shipping WPF app lives on branch [`v1`](https://github.com/nakorncode/toastdeck/tree/v1) and tag [`v1-final`](https://github.com/nakorncode/toastdeck/releases/tag/v1-final).
+This repository is in a **v2 rewrite**. The shipping WPF app lives on branch [`v1`](https://github.com/nakorncode/toastdeck/tree/v1) and tag [`v1-final`](https://github.com/nakorncode/toastdeck/releases/tag/v1-final). GitHub **Latest** is still v1 (`v0.1.4`). v2 downloadable builds are **pre-releases** that keep a separate Windows identity.
 
 ## Status
 
 | Line | What it is |
 | --- | --- |
 | **v1** | Unpackaged .NET WPF app. Captures Windows Notification Center toasts and keeps them on screen. Last release: `v0.1.4`. |
-| **v2 (this branch)** | Tauri 2 + SolidJS + `solid-sonner` tray overlay. Local unpackaged daily driver: Notification Center capture, test toast, sounds, 9-point position, duration, debug, startup. Needs Windows notification access. Not a GitHub Release; v1 remains the shipped identity. |
+| **v2 (this branch)** | Tauri 2 + SolidJS + `solid-sonner` tray overlay. Unpackaged daily driver: Notification Center capture, test toast, sounds, 9-point position, duration, debug, startup. Needs Windows notification access. Pre-releases use identity `ToastDesk.v2` and can run beside v1. |
 
-Until a GitHub **Release** is published from this new `main`, installed v1 can keep running. **The first GitHub Release on this `main` takes over the old ToastDesk Windows identity.** Uninstall v1 before that release.
+Until a **non-prerelease** GitHub Release is published from this `main`, installed v1 can keep running. **That first stable Release takes over the old ToastDesk Windows identity.** Uninstall v1 before it. Pre-releases do not.
 
 ## v2 shape
 
@@ -24,6 +24,10 @@ Until a GitHub **Release** is published from this new `main`, installed v1 can k
 - Duration: 10s / 30s / 1 min / infinite (default infinite).
 - Unpackaged Tauri until capture work needs MSIX.
 - First-run startup is **on** (Run value `ToastDesk.v2`). Disable v1 startup if both would launch.
+
+## Download (v2 pre-release)
+
+Pre-release portable zip: [GitHub Releases](https://github.com/nakorncode/toastdeck/releases) tagged `v0.2.0-pre.*` (not Latest). Unzip and run `ToastDesk.exe`. Requires [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/). Grant Windows notification access from the tray (**Retry notification access**) if capture is empty.
 
 ## Development
 
