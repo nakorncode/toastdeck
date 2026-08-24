@@ -63,7 +63,20 @@ body,
   font-family: system-ui, sans-serif;
 }
 
+.overlay-toast-title {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
 .overlay-toast-body {
   opacity: 0.9;
+  overflow: hidden;
   white-space: pre-line;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }

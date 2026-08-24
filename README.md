@@ -16,7 +16,7 @@ Until a **non-prerelease** GitHub Release is published from this `main`, install
 ## v2 shape
 
 - Almost no UI: always-on-top Sonner overlay + a tray icon.
-- Right-click tray: **Launch on startup**, **Sound**, **Position**, **Duration**, **Capture Windows notifications**, **Retry notification access**, **Debug overlay**, **Show test toast**, **Exit**.
+- Right-click tray: **Launch on startup**, **Show toast on launch**, **Sound**, **Position**, **Duration**, **Capture Windows notifications**, **Retry notification access**, **Debug overlay**, **Show test toast**, **Exit**.
 - Capture needs Windows notification access. Existing Action Center toasts are not replayed on launch. Click a card to open the source app; × dismisses locally (Notification Center is unchanged).
 - Left-click does nothing. Overlay shows only when a toast exists or debug is on.
 - No settings window. No user-facing main window.

@@ -39,6 +39,9 @@ fn build_menu(app: &AppHandle, settings: &AppSettings) -> tauri::Result<Menu<Wry
     let startup = CheckMenuItemBuilder::with_id("startup", "Launch on startup")
         .checked(settings.launch_on_startup)
         .build(app)?;
+    let launch_toast = CheckMenuItemBuilder::with_id("launch-toast", "Show toast on launch")
+        .checked(settings.show_launch_toast)
+        .build(app)?;
     let capture = CheckMenuItemBuilder::with_id("capture", "Capture Windows notifications")
         .checked(settings.windows_capture)
         .build(app)?;
@@ -56,6 +59,7 @@ fn build_menu(app: &AppHandle, settings: &AppSettings) -> tauri::Result<Menu<Wry
 
     MenuBuilder::new(app)
         .item(&startup)
+        .item(&launch_toast)
         .item(&sound)
         .item(&position)
         .item(&duration)
@@ -141,6 +145,9 @@ fn handle_menu_event(app: &AppHandle, id: &str) {
         }),
         "startup" => update_settings(app, |settings| {
             settings.launch_on_startup = !settings.launch_on_startup;
+        }),
+        "launch-toast" => update_settings(app, |settings| {
+            settings.show_launch_toast = !settings.show_launch_toast;
         }),
         "sound-enabled" => update_settings(app, |settings| {
             settings.sound_enabled = !settings.sound_enabled;

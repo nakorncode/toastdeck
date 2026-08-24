@@ -44,6 +44,7 @@ v1 WPF remains the capture spec (event + polling hybrid, unpackaged listener, ov
 - Duration: 10s / 30s / 1 min / infinite (default infinite).
 - Debug: overlay window bounds visible and a sample toast on screen.
 - Test toast: tray item that sends a WinRT `Test` toast; capture renders it on the overlay (and plays sound if enabled).
+- Launch toast: after overlay state and capture seed are ready, send a WinRT “ToastDesk has started.” toast (tray check **Show toast on launch**, default on).
 - Capture: tray check **Capture Windows notifications** (default on) plus **Retry notification access**. Dismiss is local; click opens the source app by AUMID.
 - Left-click tray does nothing.
 

@@ -27,6 +27,7 @@ export type AppSettings = {
   cardDuration: CardDuration;
   debugOverlay: boolean;
   windowsCapture: boolean;
+  showLaunchToast: boolean;
 };
 
 export type Toast = {

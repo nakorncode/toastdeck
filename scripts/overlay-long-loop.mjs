@@ -67,8 +67,13 @@ async function measure(page) {
         }));
     }
 
-    const lines = [...lineRects(title), ...lineRects(description)];
     const overlayBottom = overlayRect?.bottom ?? 0;
+    const descriptionBox = description?.getBoundingClientRect();
+    const titleLines = lineRects(title);
+    const bodyLines = lineRects(description).filter((line) =>
+      descriptionBox ? line.top < descriptionBox.bottom - 0.5 : true,
+    );
+    const lines = [...titleLines, ...bodyLines];
     const clippedLines = lines.filter((line) => line.bottom > overlayBottom + 1);
     const descriptionStyle = description ? getComputedStyle(description) : null;
 
@@ -96,15 +101,15 @@ function judge(variant, snapshot) {
   if (snapshot.toastCount !== 1) {
     failures.push(`expected 1 toast, got ${snapshot.toastCount}`);
   }
-  if (variant === "long" && lineCount < 4) {
-    failures.push(`expected at least 4 text lines, got ${lineCount}`);
+  if (variant === "long" && lineCount > 3) {
+    failures.push(`expected at most 3 visible text lines, got ${lineCount}`);
   }
-  if (variant === "long" && snapshot.whiteSpace !== "pre-line") {
-    failures.push(`expected pre-line body, got ${snapshot.whiteSpace}`);
+  if (variant === "long" && lineCount < 3) {
+    failures.push(`expected 3 visible text lines for the long fixture, got ${lineCount}`);
   }
   if (variant === "long" && snapshot.hugHeight <= VIEWPORT.height) {
     failures.push(
-      `4-line toast should need a taller window than ${VIEWPORT.height}px, got hug ${snapshot.hugHeight}`,
+      `3-line toast should need a taller window than ${VIEWPORT.height}px, got hug ${snapshot.hugHeight}`,
     );
   }
   if (snapshot.clippedLineCount > 0) {
@@ -112,7 +117,7 @@ function judge(variant, snapshot) {
       `${snapshot.clippedLineCount} text line(s) clipped by the overlay (cut in half)`,
     );
   }
-  if (snapshot.descriptionClipped || snapshot.toastClipped) {
+  if (variant !== "long" && (snapshot.descriptionClipped || snapshot.toastClipped)) {
     failures.push("toast text is internally clipped (scrollHeight > clientHeight)");
   }
   if (snapshot.overflow > 2) {

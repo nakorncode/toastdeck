@@ -99,6 +99,12 @@ fn apply_tooltip(app: &AppHandle, text: &str) {
     }
 }
 
+fn mark_capture_ready(app: &AppHandle) {
+    app.state::<AppState>()
+        .capture_ready
+        .store(true, Ordering::SeqCst);
+}
+
 fn announce_denied(app: &AppHandle) {
     let announced = &app.state::<AppState>().capture_denied_announced;
     if announced.swap(true, Ordering::SeqCst) {
@@ -160,6 +166,7 @@ fn run_loop(app: AppHandle) {
             seeded = false;
             poll = FAST_POLL;
             set_access(&app, CaptureAccess::Disabled);
+            mark_capture_ready(&app);
             if force {
                 let _ = ensure_access(&app, true);
             }
@@ -177,6 +184,7 @@ fn run_loop(app: AppHandle) {
                     listener = None;
                     seeded = false;
                     set_access(&app, access);
+                    mark_capture_ready(&app);
                     if matches!(access, CaptureAccess::Denied | CaptureAccess::Unspecified) {
                         announce_denied(&app);
                     }
@@ -187,6 +195,7 @@ fn run_loop(app: AppHandle) {
                     listener = None;
                     seeded = false;
                     set_access(&app, CaptureAccess::Unavailable);
+                    mark_capture_ready(&app);
                     eprintln!("capture: {error}");
                     wait_for_next(&app, &wake_rx, FAST_POLL, &stop);
                     continue;
@@ -198,6 +207,7 @@ fn run_loop(app: AppHandle) {
                     Ok(current) => listener = Some(current),
                     Err(error) => {
                         set_access(&app, CaptureAccess::Unavailable);
+                        mark_capture_ready(&app);
                         eprintln!("capture: {error}");
                         wait_for_next(&app, &wake_rx, FAST_POLL, &stop);
                         continue;
@@ -215,6 +225,7 @@ fn run_loop(app: AppHandle) {
             seed_existing(&app, current);
             seeded = true;
             poll = subscribe_changes(current, wake_tx.clone());
+            mark_capture_ready(&app);
         }
 
         capture_new(&app, current);
@@ -225,6 +236,7 @@ fn run_loop(app: AppHandle) {
 #[cfg(not(windows))]
 fn run_loop(app: AppHandle) {
     set_access(&app, CaptureAccess::Unavailable);
+    mark_capture_ready(&app);
 }
 
 #[cfg(windows)]

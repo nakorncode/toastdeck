@@ -7,8 +7,9 @@ mod tray;
 
 use serde::Serialize;
 use std::collections::HashSet;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_autostart::ManagerExt;
 
@@ -28,6 +29,8 @@ pub struct AppState {
     pub capture_retry: AtomicBool,
     pub capture_denied_announced: AtomicBool,
     pub overlay_content_height: Mutex<Option<f64>>,
+    pub capture_ready: AtomicBool,
+    pub overlay_ready: AtomicBool,
 }
 
 #[derive(Clone, Serialize)]
@@ -223,6 +226,69 @@ fn report_overlay_height(app: AppHandle, height: f64) {
     overlay_mod::sync_overlay(&app, &settings, count, overlay_content_height(&app));
 }
 
+#[tauri::command]
+fn mark_overlay_ready(app: AppHandle) {
+    app.state::<AppState>()
+        .overlay_ready
+        .store(true, Ordering::SeqCst);
+}
+
+fn schedule_launch_toast(app: &AppHandle, enabled: bool) {
+    if !enabled {
+        return;
+    }
+    let app = app.clone();
+    std::thread::spawn(move || {
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while Instant::now() < deadline {
+            let state = app.state::<AppState>();
+            if state.capture_ready.load(Ordering::SeqCst)
+                && state.overlay_ready.load(Ordering::SeqCst)
+            {
+                break;
+            }
+            drop(state);
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        std::thread::sleep(Duration::from_millis(150));
+        show_launch_toast(&app);
+    });
+}
+
+fn show_launch_toast(app: &AppHandle) {
+    const TITLE: &str = "ToastDesk";
+    const BODY: &str = "ToastDesk has started.";
+    let (tx, rx) = std::sync::mpsc::channel();
+    let _ = app.run_on_main_thread(move || {
+        let _ = tx.send(native::show(TITLE, BODY));
+    });
+    match rx.recv() {
+        Ok(Err(error)) => eprintln!("launch toast: {error}"),
+        Err(error) => eprintln!("launch toast: {error}"),
+        Ok(Ok(())) => {}
+    }
+    if capture_will_display(app) {
+        return;
+    }
+    push_toast(app, Toast::overlay("launch", TITLE, BODY, "test"), true);
+}
+
+fn capture_will_display(app: &AppHandle) -> bool {
+    let enabled = app
+        .state::<AppState>()
+        .settings
+        .lock()
+        .map(|settings| settings.windows_capture)
+        .unwrap_or(true);
+    let access = app
+        .state::<AppState>()
+        .capture_access
+        .lock()
+        .map(|access| *access)
+        .unwrap_or(capture::CaptureAccess::Disabled);
+    enabled && access == capture::CaptureAccess::Allowed
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -241,12 +307,15 @@ pub fn run() {
             capture_retry: AtomicBool::new(false),
             capture_denied_announced: AtomicBool::new(false),
             overlay_content_height: Mutex::new(None),
+            capture_ready: AtomicBool::new(false),
+            overlay_ready: AtomicBool::new(false),
         })
         .invoke_handler(tauri::generate_handler![
             get_overlay_state,
             dismiss_toast,
             open_toast,
-            report_overlay_height
+            report_overlay_height,
+            mark_overlay_ready
         ])
         .setup(|app| {
             let mut settings = load_settings();
@@ -283,6 +352,7 @@ pub fn run() {
             }
 
             capture::start(app.handle().clone());
+            schedule_launch_toast(app.handle(), settings.show_launch_toast);
 
             Ok(())
         })

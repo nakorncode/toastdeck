@@ -127,6 +127,8 @@ pub struct AppSettings {
     pub debug_overlay: bool,
     #[serde(default = "default_true")]
     pub windows_capture: bool,
+    #[serde(default = "default_true")]
+    pub show_launch_toast: bool,
 }
 
 impl Default for AppSettings {
@@ -139,6 +141,7 @@ impl Default for AppSettings {
             card_duration: CardDuration::Infinite,
             debug_overlay: false,
             windows_capture: true,
+            show_launch_toast: true,
         }
     }
 }
@@ -183,5 +186,6 @@ mod tests {
         }"#;
         let settings: AppSettings = serde_json::from_str(json).expect("legacy settings");
         assert!(settings.windows_capture);
+        assert!(settings.show_launch_toast);
     }
 }

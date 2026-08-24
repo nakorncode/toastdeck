@@ -51,6 +51,7 @@ const HARNESS_SETTINGS: OverlayState["settings"] = {
   cardDuration: "infinite",
   debugOverlay: true,
   windowsCapture: false,
+  showLaunchToast: false,
 };
 
 const HARNESS_STACK: OverlayState = {
@@ -108,14 +109,19 @@ export default function App() {
       return;
     }
 
-    void refreshState();
     let unlisten: (() => void) | undefined;
     void listen<OverlayState>("toastdesk://state", (event) => {
       setState(event.payload);
       syncToasts(event.payload);
-    }).then((fn) => {
-      unlisten = fn;
-    });
+    })
+      .then(async (fn) => {
+        unlisten = fn;
+        await refreshState();
+        await invoke("mark_overlay_ready");
+      })
+      .catch(() => {
+        void invoke("mark_overlay_ready").catch(() => {});
+      });
     const observer = new MutationObserver(() => scheduleOverlayHeightReport());
     if (overlayEl) {
       observer.observe(overlayEl, { childList: true, subtree: true, characterData: true });
@@ -180,7 +186,7 @@ export default function App() {
       return;
     }
     const id = card.getAttribute("data-testid");
-    if (!id || id === "debug-sample" || id === "capture-denied") {
+    if (!id || id === "debug-sample" || id === "capture-denied" || id === "launch") {
       return;
     }
     openingIds.add(id);
@@ -217,6 +223,7 @@ export default function App() {
           closeButtonAriaLabel: "Dismiss",
           classNames: {
             toast: "overlay-toast",
+            title: "overlay-toast-title",
             description: "overlay-toast-body",
           },
         }}
