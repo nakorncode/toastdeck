@@ -8,7 +8,10 @@ use crate::settings::{
     save_settings, AppSettings, CardDuration, OverlayPlacement, DEFAULT_SOUND_PRESET,
 };
 use crate::sound::{self, SOUND_PRESETS};
-use crate::{apply_startup, emit_state, push_toast, remove_toast, AppState, DEBUG_TOAST_ID, Toast};
+use crate::{
+    apply_priority, apply_startup, emit_state, push_toast, remove_toast, AppState, DEBUG_TOAST_ID,
+    Toast,
+};
 
 pub fn build_tray(app: &AppHandle, settings: &AppSettings) -> tauri::Result<tauri::tray::TrayIcon> {
     let menu = build_menu(app, settings)?;
@@ -39,6 +42,9 @@ fn build_menu(app: &AppHandle, settings: &AppSettings) -> tauri::Result<Menu<Wry
     let startup = CheckMenuItemBuilder::with_id("startup", "Launch on startup")
         .checked(settings.launch_on_startup)
         .build(app)?;
+    let priority = CheckMenuItemBuilder::with_id("high-priority", "High priority on startup")
+        .checked(settings.high_priority)
+        .build(app)?;
     let launch_toast = CheckMenuItemBuilder::with_id("launch-toast", "Show toast on launch")
         .checked(settings.show_launch_toast)
         .build(app)?;
@@ -59,6 +65,7 @@ fn build_menu(app: &AppHandle, settings: &AppSettings) -> tauri::Result<Menu<Wry
 
     MenuBuilder::new(app)
         .item(&startup)
+        .item(&priority)
         .item(&launch_toast)
         .item(&sound)
         .item(&position)
@@ -146,6 +153,9 @@ fn handle_menu_event(app: &AppHandle, id: &str) {
         "startup" => update_settings(app, |settings| {
             settings.launch_on_startup = !settings.launch_on_startup;
         }),
+        "high-priority" => update_settings(app, |settings| {
+            settings.high_priority = !settings.high_priority;
+        }),
         "launch-toast" => update_settings(app, |settings| {
             settings.show_launch_toast = !settings.show_launch_toast;
         }),
@@ -198,6 +208,7 @@ fn update_settings(app: &AppHandle, mutate: impl FnOnce(&mut AppSettings)) {
 
     let _ = save_settings(&snapshot);
     apply_startup(app, snapshot.launch_on_startup);
+    apply_priority(snapshot.high_priority);
     sync_debug_toast(app, snapshot.debug_overlay);
     let _ = refresh_menu(app, &snapshot);
     let toast_count = state.toasts.lock().map(|toasts| toasts.len()).unwrap_or(0);

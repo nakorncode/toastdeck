@@ -100,6 +100,29 @@ fn emit_state(app: &AppHandle) {
     let _ = app.emit_to("toast", "toastdesk://state", snapshot(app));
 }
 
+#[cfg(windows)]
+pub(crate) fn apply_priority(enabled: bool) {
+    use windows::Win32::System::Threading::{
+        GetCurrentProcess, SetPriorityClass, ABOVE_NORMAL_PRIORITY_CLASS, HIGH_PRIORITY_CLASS,
+        NORMAL_PRIORITY_CLASS,
+    };
+
+    let process = unsafe { GetCurrentProcess() };
+    let class = if enabled { HIGH_PRIORITY_CLASS } else { NORMAL_PRIORITY_CLASS };
+    if unsafe { SetPriorityClass(process, class) }.is_ok() {
+        return;
+    }
+    // HIGH_PRIORITY_CLASS needs SeIncreaseBasePriorityPrivilege, which standard accounts may lack.
+    if enabled {
+        if let Err(error) = unsafe { SetPriorityClass(process, ABOVE_NORMAL_PRIORITY_CLASS) } {
+            eprintln!("priority: {error}");
+        }
+    }
+}
+
+#[cfg(not(windows))]
+pub(crate) fn apply_priority(_enabled: bool) {}
+
 fn apply_startup(app: &AppHandle, enabled: bool) {
     let autostart = app.autolaunch();
     let result = if enabled {
@@ -324,6 +347,7 @@ pub fn run() {
             }
             let _ = save_settings(&settings);
             apply_startup(app.handle(), settings.launch_on_startup);
+            apply_priority(settings.high_priority);
             native::prepare();
 
             let state = app.state::<AppState>();

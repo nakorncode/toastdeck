@@ -129,6 +129,8 @@ pub struct AppSettings {
     pub windows_capture: bool,
     #[serde(default = "default_true")]
     pub show_launch_toast: bool,
+    #[serde(default = "default_true")]
+    pub high_priority: bool,
 }
 
 impl Default for AppSettings {
@@ -142,6 +144,7 @@ impl Default for AppSettings {
             debug_overlay: false,
             windows_capture: true,
             show_launch_toast: true,
+            high_priority: true,
         }
     }
 }
