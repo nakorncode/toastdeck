@@ -173,7 +173,7 @@ mod windows_impl {
     };
     use windows::Win32::Graphics::Direct2D::{
         D2D1CreateFactory, ID2D1DCRenderTarget, ID2D1Factory, ID2D1SolidColorBrush,
-        D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT, D2D1_DRAW_TEXT_OPTIONS_NONE, D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_FEATURE_LEVEL_DEFAULT,
+        D2D1_ANTIALIAS_MODE_ALIASED, D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT, D2D1_DRAW_TEXT_OPTIONS_NONE, D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_FEATURE_LEVEL_DEFAULT,
         D2D1_RENDER_TARGET_PROPERTIES, D2D1_RENDER_TARGET_TYPE_DEFAULT,
         D2D1_RENDER_TARGET_USAGE_NONE, D2D1_ROUNDED_RECT,
     };
@@ -181,6 +181,7 @@ mod windows_impl {
         DWriteCreateFactory, IDWriteFactory, IDWriteTextFormat, IDWriteTextLayout,
         DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_TEXT_METRICS,
+        DWRITE_TRIMMING, DWRITE_TRIMMING_GRANULARITY_CHARACTER,
     };
     use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM;
     use windows::Win32::Graphics::Gdi::{
@@ -298,6 +299,22 @@ mod windows_impl {
             unsafe { self.dwrite.CreateTextLayout(&wide, format, width, 10_000.0) }
         }
 
+        /// Body layout capped at BODY_LINES, with an ellipsis on the last visible line.
+        fn body_layout(&self, text: &str, width: f32) -> windows::core::Result<IDWriteTextLayout> {
+            let layout = self.layout(text, &self.body_format, width)?;
+            unsafe {
+                layout.SetMaxHeight(line_height(BODY_FONT_SIZE) * BODY_LINES)?;
+                let ellipsis = self.dwrite.CreateEllipsisTrimmingSign(&self.body_format)?;
+                let trimming = DWRITE_TRIMMING {
+                    granularity: DWRITE_TRIMMING_GRANULARITY_CHARACTER,
+                    delimiter: 0,
+                    delimiterCount: 0,
+                };
+                layout.SetTrimming(&trimming, &ellipsis)?;
+            }
+            Ok(layout)
+        }
+
         fn measure(&self, toast: &Toast) -> windows::core::Result<CardSize> {
             let text_width = (OVERLAY_WIDTH - PAD * 2 - CARD_PAD * 2 - CLOSE_SIZE) as f32;
             let title = self.layout(&title_text(toast), &self.title_format, text_width)?;
@@ -305,7 +322,7 @@ mod windows_impl {
             let body_h = if toast.body.is_empty() {
                 0.0
             } else {
-                let body = self.layout(&toast.body, &self.body_format, text_width)?;
+                let body = self.body_layout(&toast.body, text_width)?;
                 metrics(&body)?.height.min(line_height(BODY_FONT_SIZE) * BODY_LINES)
             };
             Ok(CardSize { title: title_h, body: body_h })
@@ -454,15 +471,25 @@ mod windows_impl {
                     );
                 }
                 if !toast.body.is_empty() {
-                    let body = self.layout(&toast.body, &self.body_format, text_width)?;
+                    let body = self.body_layout(&toast.body, text_width)?;
                     let body_top = title_top + self.measure_title_height(&title) + 4.0;
+                    // Body is capped at BODY_LINES; clip anything past that so long text (incl. Thai) never spills out of the card.
+                    let body_bottom = rect.top as f32 + rect.height as f32 - CARD_PAD as f32;
+                    let clip = D2D_RECT_F {
+                        left: text_left,
+                        top: body_top,
+                        right: text_left + text_width,
+                        bottom: body_bottom.max(body_top),
+                    };
                     unsafe {
+                        self.target.PushAxisAlignedClip(&clip, D2D1_ANTIALIAS_MODE_ALIASED);
                         self.target.DrawTextLayout(
                             Vector2 { X: text_left, Y: body_top },
                             &body,
                             &self.text_brush,
                             D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
                         );
+                        self.target.PopAxisAlignedClip();
                     }
                 }
                 let close = close_rect(*rect);
