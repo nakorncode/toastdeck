@@ -62,6 +62,11 @@
         <RegistryValue Root="HKCU" Key="Software\NakornCode\ToastDesk.v3\Components" Name="StartMenuEntries" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </DirectoryRef>
+    <!-- Put the Windows banner setting back before files are removed or replaced. -->
+    <CustomAction Id="RestoreWindowsToasts" Directory="INSTALLFOLDER" ExeCommand="--restore-windows-toasts" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <InstallExecuteSequence>
+      <Custom Action="RestoreWindowsToasts" Before="RemoveFiles">REMOVE="ALL"</Custom>
+    </InstallExecuteSequence>
   </Product>
 
   <Fragment>

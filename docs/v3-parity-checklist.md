@@ -25,6 +25,7 @@ Status: **unit** = covered by `cargo test` in `native/`; **manual** = check by e
 | Tray menu items and order | `tray.rs` | `tray.rs` (same labels, same order) | manual |
 | Left-click tray does nothing | yes | `show_menu` only on right-click | manual |
 | Launch on startup (Run key) | `ToastDesk.v2` | `ToastDesk.v3` | manual |
+| Hide Windows toast banners while running (value saved and restored; Notification Center untouched) | not in v2 | `platform::write_windows_toasts`, restored on exit, on uninstall and after a crash | manual |
 | High priority with Above Normal fallback | `apply_priority` | `platform::apply_priority` | manual |
 | Settings file and first-run copy from v2 | v2 path | `ToastDesk.v3\settings.json`, copied once (Q19) | unit + manual |
 | Single instance | Tauri plugin | named mutex | manual |

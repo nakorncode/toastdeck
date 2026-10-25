@@ -144,3 +144,42 @@ pub fn log(message: &str) {
     }
 }
 
+
+const TOAST_SETTING_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Notifications\Settings";
+const TOAST_SETTING_VALUE: &str = "NOC_GLOBAL_SETTING_TOASTS_ENABLED";
+
+/// Current value of the "Get notifications from apps" banner switch. None when Windows has no value
+/// (it is then on by default).
+#[cfg(windows)]
+pub fn read_windows_toasts() -> Option<i64> {
+    use winreg::{enums::HKEY_CURRENT_USER, RegKey};
+
+    let key = RegKey::predef(HKEY_CURRENT_USER).open_subkey(TOAST_SETTING_KEY).ok()?;
+    key.get_value::<u32, _>(TOAST_SETTING_VALUE).ok().map(i64::from)
+}
+
+/// Writes the banner switch, or removes it when `value` is -1 (restoring "no value").
+#[cfg(windows)]
+pub fn write_windows_toasts(value: i64) -> Result<(), String> {
+    use winreg::{enums::{HKEY_CURRENT_USER, KEY_READ, KEY_WRITE}, RegKey};
+
+    let (key, _) = RegKey::predef(HKEY_CURRENT_USER)
+        .create_subkey_with_flags(TOAST_SETTING_KEY, KEY_READ | KEY_WRITE)
+        .map_err(|error| format!("Could not open notification settings: {error}"))?;
+    if value < 0 {
+        let _ = key.delete_value(TOAST_SETTING_VALUE);
+        return Ok(());
+    }
+    key.set_value(TOAST_SETTING_VALUE, &(value as u32))
+        .map_err(|error| format!("Could not write banner setting: {error}"))
+}
+
+#[cfg(not(windows))]
+pub fn read_windows_toasts() -> Option<i64> {
+    None
+}
+
+#[cfg(not(windows))]
+pub fn write_windows_toasts(_value: i64) -> Result<(), String> {
+    Ok(())
+}

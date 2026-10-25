@@ -23,6 +23,7 @@ const TRAY_ID: u32 = 1;
 pub const ID_STARTUP: u32 = 100;
 pub const ID_HIGH_PRIORITY: u32 = 101;
 pub const ID_LAUNCH_TOAST: u32 = 102;
+pub const ID_SUPPRESS_WINDOWS_TOASTS: u32 = 103;
 pub const ID_SOUND_ENABLED: u32 = 110;
 pub const ID_SOUND_PRESET_BASE: u32 = 111;
 pub const ID_POSITION_BASE: u32 = 130;
@@ -39,6 +40,7 @@ pub enum Command {
     Startup,
     HighPriority,
     LaunchToast,
+    SuppressWindowsToasts,
     SoundEnabled,
     SoundPreset(usize),
     Position(OverlayPlacement),
@@ -57,6 +59,7 @@ pub fn command_for(id: u32) -> Option<Command> {
         ID_STARTUP => Some(Command::Startup),
         ID_HIGH_PRIORITY => Some(Command::HighPriority),
         ID_LAUNCH_TOAST => Some(Command::LaunchToast),
+        ID_SUPPRESS_WINDOWS_TOASTS => Some(Command::SuppressWindowsToasts),
         ID_SOUND_ENABLED => Some(Command::SoundEnabled),
         ID_CAPTURE => Some(Command::Capture),
         ID_CAPTURE_RETRY => Some(Command::CaptureRetry),
@@ -101,6 +104,7 @@ unsafe fn build_menu(settings: &AppSettings) -> windows::core::Result<HMENU> {
     append_item(menu, ID_STARTUP, "Launch on startup", settings.launch_on_startup);
     append_item(menu, ID_HIGH_PRIORITY, "High priority on startup", settings.high_priority);
     append_item(menu, ID_LAUNCH_TOAST, "Show toast on launch", settings.show_launch_toast);
+    append_item(menu, ID_SUPPRESS_WINDOWS_TOASTS, "Hide Windows toast banners", settings.suppress_windows_toasts);
 
     let sound = CreatePopupMenu()?;
     append_item(sound, ID_SOUND_ENABLED, "Enabled", settings.sound_enabled);

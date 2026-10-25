@@ -105,6 +105,12 @@ pub struct AppSettings {
     pub show_launch_toast: bool,
     #[serde(default = "default_true")]
     pub high_priority: bool,
+    /// Hide Windows toast banners while ToastDesk runs. Notification Center keeps working.
+    #[serde(default = "default_true")]
+    pub suppress_windows_toasts: bool,
+    /// The banner value found before we changed it: -1 when the value did not exist.
+    #[serde(default)]
+    pub saved_windows_toast_setting: Option<i64>,
 }
 
 impl Default for AppSettings {
@@ -119,6 +125,8 @@ impl Default for AppSettings {
             windows_capture: true,
             show_launch_toast: true,
             high_priority: true,
+            suppress_windows_toasts: true,
+            saved_windows_toast_setting: None,
         }
     }
 }

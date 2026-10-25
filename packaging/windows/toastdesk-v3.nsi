@@ -30,6 +30,8 @@ ShowUninstDetails show
 
 Section "Install"
   ; Stop only this app. The v2 build uses ToastDesk.exe and is left alone.
+  ; Put the Windows banner setting back before the app is stopped.
+  nsExec::Exec '"$INSTDIR\${EXE}" --restore-windows-toasts'
   nsExec::Exec 'taskkill /F /IM ${EXE} /T'
   Sleep 1500
 
@@ -60,6 +62,8 @@ Section "Install"
 SectionEnd
 
 Section "un.Uninstall"
+  ; Put the Windows banner setting back before the app is stopped.
+  nsExec::Exec '"$INSTDIR\${EXE}" --restore-windows-toasts'
   nsExec::Exec 'taskkill /F /IM ${EXE} /T'
   Sleep 1500
 

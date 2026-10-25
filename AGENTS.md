@@ -30,7 +30,7 @@ Pre-releases use `v3.0.0-pre.N`. Non-pre-releases are not planned until v3 has p
 ## Locked product shape
 
 Same as v2 (see `docs/v3-parity-checklist.md`). Tray: Launch on startup · High priority on startup ·
-Show toast on launch · Sound · Position · Duration · Capture Windows notifications · Retry notification access ·
+Show toast on launch · Hide Windows toast banners · Sound · Position · Duration · Capture Windows notifications · Retry notification access ·
 Debug overlay · Show test toast · Exit. Overlay appears only when a toast exists or debug is on.
 The overlay also has a "Dismiss all" row, which clears captured cards only.
 

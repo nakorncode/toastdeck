@@ -112,6 +112,34 @@ impl App {
         CAPTURE_ENABLED.store(self.settings.windows_capture, Ordering::SeqCst);
         platform::apply_startup(self.settings.launch_on_startup);
         platform::apply_priority(self.settings.high_priority);
+        self.sync_windows_toasts();
+    }
+
+    /// Turns Windows banners off while the switch is on, and remembers the original value so it can
+    /// be put back. Notification Center is not affected.
+    fn sync_windows_toasts(&mut self) {
+        if self.settings.suppress_windows_toasts {
+            if self.settings.saved_windows_toast_setting.is_none() {
+                let original = platform::read_windows_toasts().unwrap_or(-1);
+                match platform::write_windows_toasts(0) {
+                    Ok(()) => self.settings.saved_windows_toast_setting = Some(original),
+                    Err(error) => platform::log(&error),
+                }
+            }
+        } else {
+            self.release_windows_toasts();
+        }
+        self.save();
+    }
+
+    /// Puts back the banner value saved before ToastDesk changed it.
+    fn release_windows_toasts(&mut self) {
+        if let Some(original) = self.settings.saved_windows_toast_setting.take() {
+            if let Err(error) = platform::write_windows_toasts(original) {
+                platform::log(&error);
+            }
+            self.save();
+        }
     }
 
     fn update_settings(&mut self, mutate: impl FnOnce(&mut AppSettings)) {
@@ -156,6 +184,9 @@ impl App {
             Command::Startup => self.update_settings(|s| s.launch_on_startup = !s.launch_on_startup),
             Command::HighPriority => self.update_settings(|s| s.high_priority = !s.high_priority),
             Command::LaunchToast => self.update_settings(|s| s.show_launch_toast = !s.show_launch_toast),
+            Command::SuppressWindowsToasts => {
+                self.update_settings(|s| s.suppress_windows_toasts = !s.suppress_windows_toasts)
+            }
             Command::SoundEnabled => self.update_settings(|s| s.sound_enabled = !s.sound_enabled),
             Command::SoundPreset(index) => {
                 if let Some(preset) = SOUND_PRESETS.get(index) {
@@ -307,6 +338,7 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lpar
             LRESULT(0)
         }
         WM_DESTROY => {
+            with_app(|app| app.release_windows_toasts());
             tray::remove(hwnd);
             PostQuitMessage(0);
             LRESULT(0)
@@ -358,11 +390,22 @@ fn run() -> windows::core::Result<()> {
         let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     }
     platform::set_process_identity();
+    // Called by the installer and uninstaller before they stop the app.
+    if std::env::args().any(|arg| arg == "--restore-windows-toasts") {
+        restore_windows_toasts_only();
+        return Ok(());
+    }
     if !platform::acquire_single_instance() {
         return Ok(());
     }
 
-    let settings = load_settings();
+    let mut settings = load_settings();
+    // A value still saved here means the last run ended without restoring it (for example a crash).
+    if let Some(original) = settings.saved_windows_toast_setting.take() {
+        if let Err(error) = platform::write_windows_toasts(original) {
+            platform::log(&error);
+        }
+    }
     let _ = save_settings(&settings);
     platform::apply_priority(settings.high_priority);
     platform::apply_startup(settings.launch_on_startup);
@@ -384,6 +427,7 @@ fn run() -> windows::core::Result<()> {
         access: CaptureAccess::Disabled,
     };
     app.sync_debug_toast();
+    app.sync_windows_toasts();
     APP.with(|cell| *cell.borrow_mut() = Some(app));
 
     capture::start();
@@ -419,5 +463,16 @@ mod tests {
     fn default_duration_is_infinite() {
         assert_eq!(AppSettings::default().card_duration, CardDuration::Infinite);
         assert_eq!(AppSettings::default().overlay_placement, OverlayPlacement::TopRight);
+    }
+}
+
+/// Puts back the Windows banner value when ToastDesk saved one, then returns without starting.
+fn restore_windows_toasts_only() {
+    let mut settings = load_settings();
+    if let Some(original) = settings.saved_windows_toast_setting.take() {
+        if let Err(error) = platform::write_windows_toasts(original) {
+            platform::log(&error);
+        }
+        let _ = save_settings(&settings);
     }
 }

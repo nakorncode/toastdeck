@@ -141,10 +141,10 @@ pub fn close_rect(card: Rect) -> Rect {
 /// Emoji shown before the title, so cards from different sources are easier to tell apart.
 pub fn title_text(toast: &Toast) -> String {
     let badge = match toast.id.as_str() {
-        DEBUG_TOAST_ID => "{1F6E0}",
-        CAPTURE_DENIED_ID => "{26A0}{FE0F}",
-        "launch" => "{2705}",
-        _ if toast.captured => "{1F514}",
+        DEBUG_TOAST_ID => "\u{1F6E0}",
+        CAPTURE_DENIED_ID => "\u{26A0}\u{FE0F}",
+        "launch" => "\u{2705}",
+        _ if toast.captured => "\u{1F514}",
         _ => "",
     };
     if badge.is_empty() {
@@ -173,7 +173,7 @@ mod windows_impl {
     };
     use windows::Win32::Graphics::Direct2D::{
         D2D1CreateFactory, ID2D1DCRenderTarget, ID2D1Factory, ID2D1SolidColorBrush,
-        D2D1_DRAW_TEXT_OPTIONS_NONE, D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_FEATURE_LEVEL_DEFAULT,
+        D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT, D2D1_DRAW_TEXT_OPTIONS_NONE, D2D1_FACTORY_TYPE_SINGLE_THREADED, D2D1_FEATURE_LEVEL_DEFAULT,
         D2D1_RENDER_TARGET_PROPERTIES, D2D1_RENDER_TARGET_TYPE_DEFAULT,
         D2D1_RENDER_TARGET_USAGE_NONE, D2D1_ROUNDED_RECT,
     };
@@ -450,7 +450,7 @@ mod windows_impl {
                         Vector2 { X: text_left, Y: title_top },
                         &title,
                         &self.text_brush,
-                        D2D1_DRAW_TEXT_OPTIONS_NONE,
+                        D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
                     );
                 }
                 if !toast.body.is_empty() {
@@ -461,7 +461,7 @@ mod windows_impl {
                             Vector2 { X: text_left, Y: body_top },
                             &body,
                             &self.text_brush,
-                            D2D1_DRAW_TEXT_OPTIONS_NONE,
+                            D2D1_DRAW_TEXT_OPTIONS_ENABLE_COLOR_FONT,
                         );
                     }
                 }
