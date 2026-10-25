@@ -289,6 +289,7 @@ fn capture_new(
             Ok((title, body, aumid)) => {
                 let mut toast = Toast::new(overlay_id(id), title, body);
                 toast.captured = true;
+                toast.source_exe = aumid.as_deref().and_then(crate::icon::exe_for_aumid);
                 toast.source_aumid = aumid;
                 post_event(Event::Push { toast, play_sound: true });
             }

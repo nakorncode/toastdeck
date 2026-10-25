@@ -18,6 +18,8 @@ pub struct Toast {
     pub title: String,
     pub body: String,
     pub source_aumid: Option<String>,
+    /// Executable of the source app, when a Start menu shortcut matches it. Used for the card icon.
+    pub source_exe: Option<std::path::PathBuf>,
     /// True for notifications captured from Windows. Only these are cleared by "Dismiss all".
     pub captured: bool,
     pub created: Instant,
@@ -30,6 +32,7 @@ impl Toast {
             title: title.into(),
             body: body.into(),
             source_aumid: None,
+            source_exe: None,
             captured: false,
             created: Instant::now(),
         }
