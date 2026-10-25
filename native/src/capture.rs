@@ -133,7 +133,7 @@ fn run_loop() {
                     seeded = false;
                     set_access(CaptureAccess::Unavailable);
                     CAPTURE_READY.store(true, Ordering::SeqCst);
-                    eprintln!("capture: {error}");
+                    crate::platform::log(&format!("capture: {error}"));
                     wait_for_next(&wake_rx, FAST_POLL);
                     continue;
                 }
@@ -145,7 +145,7 @@ fn run_loop() {
                     Err(error) => {
                         set_access(CaptureAccess::Unavailable);
                         CAPTURE_READY.store(true, Ordering::SeqCst);
-                        eprintln!("capture: {error}");
+                        crate::platform::log(&format!("capture: {error}"));
                         wait_for_next(&wake_rx, FAST_POLL);
                         continue;
                     }
@@ -440,3 +440,4 @@ mod tests {
         assert_eq!(body, "Notification ID 9");
     }
 }
+

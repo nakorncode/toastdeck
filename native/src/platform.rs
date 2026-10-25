@@ -44,7 +44,7 @@ pub fn apply_priority(enabled: bool) {
     // HIGH_PRIORITY_CLASS needs SeIncreaseBasePriorityPrivilege, which standard accounts may lack.
     if enabled {
         if let Err(error) = unsafe { SetPriorityClass(process, ABOVE_NORMAL_PRIORITY_CLASS) } {
-            eprintln!("priority: {error}");
+            crate::platform::log(&format!("priority: {error}"));
         }
     }
 }
@@ -59,14 +59,14 @@ pub fn apply_startup(enabled: bool) {
         winreg::enums::KEY_READ | winreg::enums::KEY_WRITE,
     );
     let Ok(run) = run else {
-        eprintln!("startup: could not open Run key");
+        crate::platform::log(&format!("startup: could not open Run key"));
         return;
     };
     if enabled {
         if let Ok(exe) = std::env::current_exe() {
             let value = format!("\"{}\"", exe.display());
             if let Err(error) = run.set_value(APP_NAME, &value) {
-                eprintln!("startup: {error}");
+                crate::platform::log(&format!("startup: {error}"));
             }
         }
     } else {
@@ -122,3 +122,25 @@ pub fn apply_startup(_enabled: bool) {}
 pub fn show_native_toast(_title: &str, _body: &str) -> Result<(), String> {
     Ok(())
 }
+
+/// Appends a line to `%LOCALAPPDATA%\ToastDesk.v3\app.log`. The release build has no console,
+/// so errors that would otherwise go to stderr are written here.
+pub fn log(message: &str) {
+    use std::io::Write;
+
+    let Some(root) = std::env::var_os("LOCALAPPDATA") else {
+        return;
+    };
+    let dir = std::path::PathBuf::from(root).join("ToastDesk.v3");
+    if std::fs::create_dir_all(&dir).is_err() {
+        return;
+    }
+    let stamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|elapsed| elapsed.as_secs())
+        .unwrap_or(0);
+    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(dir.join("app.log")) {
+        let _ = writeln!(file, "{stamp} {message}");
+    }
+}
+

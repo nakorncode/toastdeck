@@ -62,6 +62,8 @@ if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
 New-Item -ItemType Directory -Path (Join-Path $stage "sounds") | Out-Null
 Copy-Item (Join-Path $native "target\release\ToastDeskV3.exe") $stage
 Copy-Item (Join-Path $root "assets\sounds\AOSP-LICENSE.md") $stage
+Copy-Item (Join-Path $root "assets\icons\128x128.png") (Join-Path $stage "icon.png")
+Copy-Item (Join-Path $root "assets\icons\icon.ico") $stage
 Copy-Item (Join-Path $root "assets\sounds\*.wav") (Join-Path $stage "sounds")
 
 if (Test-Path $out) { Remove-Item -Recurse -Force $out }

@@ -4,14 +4,15 @@
 use windows::core::w;
 use windows::Win32::Foundation::{HWND, RECT};
 
-use crate::model::Toast;
+use crate::model::{Toast, CAPTURE_DENIED_ID, DEBUG_TOAST_ID};
 use crate::settings::OverlayPlacement;
 
 pub const OVERLAY_WIDTH: i32 = 380;
 pub const PAD: i32 = 12;
 pub const GAP: i32 = 12;
 pub const CARD_PAD: i32 = 12;
-pub const CLOSE_SIZE: i32 = 22;
+pub const CLOSE_SIZE: i32 = 28;
+const CLOSE_FONT_SIZE: f32 = 18.0;
 pub const BUTTON_HEIGHT: i32 = 26;
 pub const MARGIN: i32 = 16;
 /// Title shows one line and the body shows at most two, as in v2.
@@ -137,6 +138,22 @@ pub fn close_rect(card: Rect) -> Rect {
     }
 }
 
+/// Emoji shown before the title, so cards from different sources are easier to tell apart.
+pub fn title_text(toast: &Toast) -> String {
+    let badge = match toast.id.as_str() {
+        DEBUG_TOAST_ID => "{1F6E0}",
+        CAPTURE_DENIED_ID => "{26A0}{FE0F}",
+        "launch" => "{2705}",
+        _ if toast.captured => "{1F514}",
+        _ => "",
+    };
+    if badge.is_empty() {
+        toast.title.clone()
+    } else {
+        format!("{badge} {}", toast.title)
+    }
+}
+
 pub fn line_height(font_size: f32) -> f32 {
     font_size * LINE_FACTOR
 }
@@ -188,7 +205,14 @@ mod windows_impl {
         button_brush: ID2D1SolidColorBrush,
         text_brush: ID2D1SolidColorBrush,
         debug_brush: ID2D1SolidColorBrush,
+        card_hover_brush: ID2D1SolidColorBrush,
+        glow_brush: ID2D1SolidColorBrush,
+        button_hover_brush: ID2D1SolidColorBrush,
+        close_hover_brush: ID2D1SolidColorBrush,
+        close_format: IDWriteTextFormat,
         hits: Vec<(Hit, Rect)>,
+        /// The element under the pointer, drawn with a highlight.
+        hover: Option<Hit>,
         /// Device pixels per DIP for the window's monitor (1.0 at 96 DPI).
         scale: f32,
         visible: bool,
@@ -210,6 +234,17 @@ mod windows_impl {
             };
             let target = unsafe { factory.CreateDCRenderTarget(&props)? };
             let dwrite: IDWriteFactory = unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED)? };
+            let close_format = unsafe {
+                dwrite.CreateTextFormat(
+                    w!("Segoe UI"),
+                    None,
+                    DWRITE_FONT_WEIGHT_NORMAL,
+                    DWRITE_FONT_STYLE_NORMAL,
+                    DWRITE_FONT_STRETCH_NORMAL,
+                    CLOSE_FONT_SIZE,
+                    w!(""),
+                )?
+            };
             let title_format = unsafe {
                 dwrite.CreateTextFormat(
                     w!("Segoe UI"),
@@ -242,11 +277,17 @@ mod windows_impl {
                 button_brush: brush(0.22, 0.27, 0.35, 0.96)?,
                 text_brush: brush(0.97, 0.98, 0.99, 1.0)?,
                 debug_brush: brush(0.95, 0.25, 0.25, 0.18)?,
+                card_hover_brush: brush(0.17, 0.22, 0.31, 0.97)?,
+                glow_brush: brush(0.42, 0.72, 1.0, 0.45)?,
+                button_hover_brush: brush(0.30, 0.36, 0.46, 0.98)?,
+                close_hover_brush: brush(1.0, 1.0, 1.0, 0.20)?,
+                close_format,
                 target,
                 dwrite,
                 title_format,
                 body_format,
                 hits: Vec::new(),
+                hover: None,
                 visible: false,
                 scale: 1.0,
             })
@@ -259,7 +300,7 @@ mod windows_impl {
 
         fn measure(&self, toast: &Toast) -> windows::core::Result<CardSize> {
             let text_width = (OVERLAY_WIDTH - PAD * 2 - CARD_PAD * 2 - CLOSE_SIZE) as f32;
-            let title = self.layout(&toast.title, &self.title_format, text_width)?;
+            let title = self.layout(&title_text(toast), &self.title_format, text_width)?;
             let title_h = metrics(&title)?.height.min(line_height(TITLE_FONT_SIZE) * TITLE_LINES);
             let body_h = if toast.body.is_empty() {
                 0.0
@@ -389,10 +430,20 @@ mod windows_impl {
                     radiusX: 10.0,
                     radiusY: 10.0,
                 };
-                unsafe { self.target.FillRoundedRectangle(&rounded, &self.card_brush) };
+                let card_hovered = matches!(self.hover, Some(Hit::Card(i)) | Some(Hit::Close(i)) if i == *index);
+                if card_hovered {
+                    let glow = D2D1_ROUNDED_RECT {
+                        rect: to_d2d(Rect { left: rect.left - 3, top: rect.top - 3, width: rect.width + 6, height: rect.height + 6 }),
+                        radiusX: 13.0,
+                        radiusY: 13.0,
+                    };
+                    unsafe { self.target.FillRoundedRectangle(&glow, &self.glow_brush) };
+                }
+                let card_brush = if card_hovered { &self.card_hover_brush } else { &self.card_brush };
+                unsafe { self.target.FillRoundedRectangle(&rounded, card_brush) };
                 let text_left = rect.left as f32 + CARD_PAD as f32;
                 let text_width = (rect.width - CARD_PAD * 2 - CLOSE_SIZE) as f32;
-                let title = self.layout(&toast.title, &self.title_format, text_width)?;
+                let title = self.layout(&title_text(toast), &self.title_format, text_width)?;
                 let title_top = rect.top as f32 + CARD_PAD as f32;
                 unsafe {
                     self.target.DrawTextLayout(
@@ -415,10 +466,21 @@ mod windows_impl {
                     }
                 }
                 let close = close_rect(*rect);
-                let close_text = self.layout("\u{00D7}", &self.body_format, CLOSE_SIZE as f32)?;
+                if self.hover == Some(Hit::Close(*index)) {
+                    let circle = D2D1_ROUNDED_RECT {
+                        rect: to_d2d(close),
+                        radiusX: CLOSE_SIZE as f32 / 2.0,
+                        radiusY: CLOSE_SIZE as f32 / 2.0,
+                    };
+                    unsafe { self.target.FillRoundedRectangle(&circle, &self.close_hover_brush) };
+                }
+                let close_text = self.layout("\u{00D7}", &self.close_format, CLOSE_SIZE as f32)?;
+                let glyph = metrics(&close_text)?;
+                let glyph_left = close.left as f32 + (CLOSE_SIZE as f32 - glyph.width) / 2.0;
+                let glyph_top = close.top as f32 + (CLOSE_SIZE as f32 - glyph.height) / 2.0;
                 unsafe {
                     self.target.DrawTextLayout(
-                        Vector2 { X: close.left as f32 + 5.0, Y: close.top as f32 + 1.0 },
+                        Vector2 { X: glyph_left, Y: glyph_top },
                         &close_text,
                         &self.text_brush,
                         D2D1_DRAW_TEXT_OPTIONS_NONE,
@@ -428,7 +490,8 @@ mod windows_impl {
 
             if let Some(rect) = button {
                 let rounded = D2D1_ROUNDED_RECT { rect: to_d2d(rect), radiusX: 8.0, radiusY: 8.0 };
-                unsafe { self.target.FillRoundedRectangle(&rounded, &self.button_brush) };
+                let brush = if self.hover == Some(Hit::DismissAll) { &self.button_hover_brush } else { &self.button_brush };
+                unsafe { self.target.FillRoundedRectangle(&rounded, brush) };
                 let label = self.layout("Dismiss all", &self.body_format, rect.width as f32)?;
                 unsafe {
                     self.target.DrawTextLayout(
@@ -464,6 +527,17 @@ mod windows_impl {
                 self.visible = false;
             }
             self.hits.clear();
+            self.hover = None;
+        }
+
+        /// Stores the element under the pointer. Returns true when the highlight changed and the
+        /// overlay needs a redraw.
+        pub fn set_hover(&mut self, hover: Option<Hit>) -> bool {
+            if self.hover == hover {
+                return false;
+            }
+            self.hover = hover;
+            true
         }
 
         pub fn hit_test(&self, x: i32, y: i32) -> Option<Hit> {

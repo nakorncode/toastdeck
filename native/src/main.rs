@@ -17,13 +17,18 @@ use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use windows::core::w;
-use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
+use windows::Win32::Graphics::Gdi::ScreenToClient;
+use windows::Win32::UI::Input::KeyboardAndMouse::{TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT};
+
+/// Sent when the pointer leaves a window tracked with TrackMouseEvent (WM_MOUSELEAVE = 0x02A3).
+const WM_MOUSELEAVE: u32 = 0x02A3;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::HiDpi::{SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};
 use windows::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, PostQuitMessage,
-    RegisterClassExW, SetTimer, TranslateMessage, MSG, WM_DESTROY, WM_LBUTTONUP, WM_RBUTTONUP,
-    WM_TIMER, WNDCLASSEXW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetCursorPos, GetMessageW, LoadCursorW,
+    PostQuitMessage, RegisterClassExW, SetCursor, SetTimer, TranslateMessage, HTCLIENT, IDC_ARROW, IDC_HAND, MSG,
+    WM_DESTROY, WM_LBUTTONUP, WM_MOUSEMOVE, WM_RBUTTONUP, WM_SETCURSOR, WM_TIMER, WNDCLASSEXW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
     WS_POPUP,
 };
 
@@ -57,7 +62,7 @@ fn with_app<T>(f: impl FnOnce(&mut App) -> T) -> Option<T> {
 impl App {
     fn render(&mut self) {
         if let Err(error) = self.overlay.render(&self.toasts, self.settings.debug_overlay, self.settings.overlay_placement) {
-            eprintln!("overlay: {error}");
+            crate::platform::log(&format!("overlay: {error}"));
         }
     }
 
@@ -77,7 +82,7 @@ impl App {
         }
         if play_sound && self.settings.sound_enabled {
             if let Err(error) = sound::play(&self.settings.sound_preset) {
-                eprintln!("sound: {error}");
+                crate::platform::log(&format!("sound: {error}"));
             }
         }
         self.render();
@@ -99,7 +104,7 @@ impl App {
 
     fn save(&self) {
         if let Err(error) = save_settings(&self.settings) {
-            eprintln!("settings: {error}");
+            crate::platform::log(&format!("settings: {error}"));
         }
     }
 
@@ -129,7 +134,7 @@ impl App {
                 }
                 if let Some(aumid) = toast.source_aumid.as_deref() {
                     if let Err(error) = capture::open_source_app(aumid) {
-                        eprintln!("open toast: {error}");
+                        crate::platform::log(&format!("open toast: {error}"));
                     }
                 }
                 self.remove(&toast.id);
@@ -171,7 +176,7 @@ impl App {
             }
             Command::TestToast => {
                 if let Err(error) = platform::show_native_toast("Test", "ToastDesk overlay is working.") {
-                    eprintln!("native toast: {error}");
+                    crate::platform::log(&format!("native toast: {error}"));
                 }
             }
             Command::Exit => unsafe {
@@ -206,7 +211,7 @@ impl App {
         const TITLE: &str = "ToastDesk";
         const BODY: &str = "ToastDesk has started.";
         if let Err(error) = platform::show_native_toast(TITLE, BODY) {
-            eprintln!("launch toast: {error}");
+            crate::platform::log(&format!("launch toast: {error}"));
         }
         let capture_will_display = self.settings.windows_capture && self.access == CaptureAccess::Allowed;
         if !capture_will_display {
@@ -249,6 +254,43 @@ unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lpar
                 }
             }
             LRESULT(0)
+        }
+        WM_MOUSEMOVE => {
+            let x = (lparam.0 & 0xFFFF) as i16 as i32;
+            let y = ((lparam.0 >> 16) & 0xFFFF) as i16 as i32;
+            let mut tracking = TRACKMOUSEEVENT {
+                cbSize: size_of::<TRACKMOUSEEVENT>() as u32,
+                dwFlags: TME_LEAVE,
+                hwndTrack: hwnd,
+                dwHoverTime: 0,
+            };
+            let _ = TrackMouseEvent(&mut tracking);
+            with_app(|app| {
+                let hover = app.overlay.hit_test(x, y);
+                if app.overlay.set_hover(hover) {
+                    app.render();
+                }
+            });
+            LRESULT(0)
+        }
+        WM_MOUSELEAVE => {
+            with_app(|app| {
+                if app.overlay.set_hover(None) {
+                    app.render();
+                }
+            });
+            LRESULT(0)
+        }
+        WM_SETCURSOR if (lparam.0 & 0xFFFF) as u32 == HTCLIENT => {
+            let mut point = POINT::default();
+            let _ = GetCursorPos(&mut point);
+            let _ = ScreenToClient(hwnd, &mut point);
+            let clickable = with_app(|app| app.overlay.hit_test(point.x, point.y).is_some()).unwrap_or(false);
+            let name = if clickable { IDC_HAND } else { IDC_ARROW };
+            if let Ok(cursor) = LoadCursorW(None, name) {
+                SetCursor(Some(cursor));
+            }
+            LRESULT(1)
         }
         WM_LBUTTONUP => {
             let x = (lparam.0 & 0xFFFF) as i16 as i32;
@@ -329,8 +371,9 @@ fn run() -> windows::core::Result<()> {
     let hwnd = unsafe { create_window()? };
     MAIN_HWND.store(hwnd.0 as isize, Ordering::SeqCst);
     let overlay = Overlay::new(hwnd)?;
-    if let Err(error) = tray::add(hwnd, "ToastDesk") {
-        eprintln!("tray: {error}");
+    match tray::add(hwnd, "ToastDesk") {
+        Ok(()) => platform::log("tray: icon added"),
+        Err(error) => platform::log(&format!("tray: {error}")),
     }
 
     let mut app = App {
@@ -362,7 +405,7 @@ fn run() -> windows::core::Result<()> {
 
 fn main() {
     if let Err(error) = run() {
-        eprintln!("ToastDesk failed: {error}");
+        crate::platform::log(&format!("ToastDesk failed: {error}"));
         std::process::exit(1);
     }
 }

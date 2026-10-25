@@ -7,8 +7,9 @@ use windows::Win32::UI::Shell::{
     NOTIFYICONDATAW,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    AppendMenuW, CreatePopupMenu, DestroyMenu, GetCursorPos, LoadIconW, SetForegroundWindow,
-    TrackPopupMenu, HMENU, IDI_APPLICATION, MF_CHECKED, MF_POPUP, MF_SEPARATOR, MF_STRING,
+    AppendMenuW, CreatePopupMenu, DestroyMenu, GetCursorPos, LoadIconW, LoadImageW, SetForegroundWindow,
+    TrackPopupMenu, HICON, HMENU, IDI_APPLICATION, IMAGE_ICON, LR_DEFAULTSIZE, LR_LOADFROMFILE, MF_CHECKED,
+    MF_POPUP, MF_SEPARATOR, MF_STRING,
     MF_UNCHECKED, TPM_RETURNCMD, TPM_RIGHTBUTTON,
 };
 
@@ -161,7 +162,7 @@ fn icon_data(hwnd: HWND, tooltip: &str) -> windows::core::Result<NOTIFYICONDATAW
         uID: TRAY_ID,
         uFlags: NIF_MESSAGE | NIF_ICON | NIF_TIP,
         uCallbackMessage: WM_APP_TRAY,
-        hIcon: unsafe { LoadIconW(None, IDI_APPLICATION)? },
+        hIcon: load_tray_icon(),
         ..Default::default()
     };
     for (slot, unit) in data.szTip.iter_mut().zip(tooltip.encode_utf16().take(127)) {
@@ -207,4 +208,24 @@ mod tests {
     fn unknown_id_is_ignored() {
         assert_eq!(command_for(999), None);
     }
+}
+
+/// The ToastDesk icon from `icon.ico` next to the executable, or the system default when missing.
+fn load_tray_icon() -> HICON {
+    use std::os::windows::ffi::OsStrExt;
+
+    let icon_path = std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|dir| dir.join("icon.ico")))
+        .filter(|path| path.is_file());
+    if let Some(path) = icon_path {
+        let wide: Vec<u16> = path.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+        let loaded = unsafe {
+            LoadImageW(None, PCWSTR(wide.as_ptr()), IMAGE_ICON, 0, 0, LR_LOADFROMFILE | LR_DEFAULTSIZE)
+        };
+        if let Ok(handle) = loaded {
+            return HICON(handle.0);
+        }
+    }
+    unsafe { LoadIconW(None, IDI_APPLICATION).unwrap_or_default() }
 }

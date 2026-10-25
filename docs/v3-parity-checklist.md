@@ -32,7 +32,14 @@ Status: **unit** = covered by `cargo test` in `native/`; **manual** = check by e
 
 ## Known differences to review
 
-- Tray icon uses the system default application icon, not the ToastDesk icon from v2. Embedding the
-  icon needs a resource file (not done yet).
+- Tray icon loads `icon.ico` from the install folder (same icon as v2). If the file is missing it falls back
+  to the system default icon.
+- Windows 11 may place a new tray icon in the overflow area (^). The installed app pins its own entry
+  (`IsPromoted`) on this PC; a fresh machine may need the icon dragged onto the taskbar once.
+- No per-app logo: `UserNotification.AppInfo().DisplayInfo().GetLogo()` returned no logo for these
+  notifications in testing, so cards show an emoji before the title instead (🔔 captured, ✅ launch,
+  ⚠️ capture notice, 🛠 debug). Per-app icons need another source and are not done.
+- Hover: the card gets a soft glow and the pointer shows a hand over clickable areas (cards, ×, Dismiss all).
+  The × is larger and gets a round highlight on hover.
 - Text is clipped rather than ellipsised when it passes the line limit.
 - Capture access is requested on the UI thread, as in v2, through an event and a reply channel.
