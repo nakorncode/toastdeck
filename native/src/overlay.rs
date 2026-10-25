@@ -16,6 +16,11 @@ const CLOSE_FONT_SIZE: f32 = 18.0;
 pub const BUTTON_HEIGHT: i32 = 26;
 pub const MARGIN: i32 = 16;
 /// Title shows one line and the body shows at most two, as in v2.
+/// Size in DIPs of the app icon shown before a captured card's title.
+pub const ICON_SIZE: i32 = 16;
+/// Space between the app icon and the title.
+pub const ICON_GAP: i32 = 6;
+
 pub const TITLE_LINES: f32 = 1.0;
 pub const BODY_LINES: f32 = 2.0;
 const TITLE_FONT_SIZE: f32 = 14.0;
@@ -97,36 +102,37 @@ pub fn overlay_position(
     }
 }
 
-/// Stacks the cards and the optional "Dismiss all" row. Returns the card rectangles in
-/// display order and the button rectangle when there is at least one toast.
+/// Stacks the "Dismiss all" row and the cards. The button is always at the top, so it stays
+/// reachable whatever the placement. Cards that do not fit in `max_height` are left out of the
+/// returned list; they stay in the queue and show again once there is room.
+/// Returns the card rectangles in display order, the button rectangle, and the window height.
 pub fn stack_layout(
     sizes: &[CardSize],
     from_bottom: bool,
     button_width: i32,
+    max_height: i32,
 ) -> (Vec<(usize, Rect)>, Option<Rect>, i32) {
     let card_width = OVERLAY_WIDTH - PAD * 2;
     let order = display_order(sizes.len(), from_bottom);
-    let mut y = PAD;
     let mut cards = Vec::with_capacity(sizes.len());
-    let mut button = None;
-
-    if !sizes.is_empty() && from_bottom {
-        button = Some(Rect { left: OVERLAY_WIDTH - PAD - button_width, top: y, width: button_width, height: BUTTON_HEIGHT });
-        y += BUTTON_HEIGHT + GAP;
+    if sizes.is_empty() {
+        return (cards, None, PAD * 2);
     }
+
+    let button = Rect { left: OVERLAY_WIDTH - PAD - button_width, top: PAD, width: button_width, height: BUTTON_HEIGHT };
+    // Room left below the button for cards (button, gap, then cards separated by GAP).
+    let limit = max_height - PAD;
+    let mut y = PAD + BUTTON_HEIGHT + GAP;
     for index in order {
         let height = sizes[index].height();
+        if y + height > limit {
+            break;
+        }
         cards.push((index, Rect { left: PAD, top: y, width: card_width, height }));
         y += height + GAP;
     }
-    if !sizes.is_empty() && !from_bottom {
-        button = Some(Rect { left: OVERLAY_WIDTH - PAD - button_width, top: y, width: button_width, height: BUTTON_HEIGHT });
-        y += BUTTON_HEIGHT;
-    } else {
-        y -= GAP;
-    }
-    let height = y + PAD;
-    (cards, button, height.max(PAD * 2))
+    let bottom = cards.last().map(|(_, rect)| rect.top + rect.height).unwrap_or(button.top + button.height);
+    (cards, Some(button), (bottom + PAD).max(PAD * 2))
 }
 
 pub fn close_rect(card: Rect) -> Rect {
@@ -144,7 +150,8 @@ pub fn title_text(toast: &Toast) -> String {
         DEBUG_TOAST_ID => "\u{1F6E0}",
         CAPTURE_DENIED_ID => "\u{26A0}\u{FE0F}",
         "launch" => "\u{2705}",
-        _ if toast.captured => "\u{1F514}",
+        // Captured cards with an app icon show that icon instead of the bell.
+        _ if toast.captured && toast.source_exe.is_none() => "\u{1F514}",
         _ => "",
     };
     if badge.is_empty() {
@@ -191,7 +198,7 @@ mod windows_impl {
     };
     use windows::Win32::UI::HiDpi::GetDpiForWindow;
     use windows::Win32::UI::WindowsAndMessaging::{
-        GetSystemMetrics, ShowWindow, SystemParametersInfoW, UpdateLayeredWindow, SM_CXSCREEN,
+        DrawIconEx, GetSystemMetrics, ShowWindow, SystemParametersInfoW, UpdateLayeredWindow, DI_NORMAL, HICON, SM_CXSCREEN,
         SM_CYSCREEN, SPI_GETWORKAREA, SW_HIDE, SW_SHOWNOACTIVATE, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
         ULW_ALPHA,
     };
@@ -344,8 +351,11 @@ mod windows_impl {
             let sizes = toasts.iter().map(|toast| self.measure(toast)).collect::<windows::core::Result<Vec<_>>>()?;
             let button_width = self.button_width()?;
             let from_bottom = placement.from_bottom();
-            let (cards, button, height) = stack_layout(&sizes, from_bottom, button_width);
             self.scale = self.current_scale();
+            // Largest height in DIPs that fits the work area, so cards past the screen edge are left out.
+            let work = self.work_area();
+            let max_height = ((work.height as f32 / self.scale) as i32) - MARGIN * 2;
+            let (cards, button, height) = stack_layout(&sizes, from_bottom, button_width, max_height);
             let width = OVERLAY_WIDTH;
 
             self.hits.clear();
@@ -458,8 +468,10 @@ mod windows_impl {
                 }
                 let card_brush = if card_hovered { &self.card_hover_brush } else { &self.card_brush };
                 unsafe { self.target.FillRoundedRectangle(&rounded, card_brush) };
-                let text_left = rect.left as f32 + CARD_PAD as f32;
-                let text_width = (rect.width - CARD_PAD * 2 - CLOSE_SIZE) as f32;
+                let has_icon = toast.source_exe.is_some() && crate::icon::small_icon(toast.source_exe.as_deref().unwrap_or(std::path::Path::new(""))) != 0;
+                let indent = if has_icon { ICON_SIZE + ICON_GAP } else { 0 };
+                let text_left = rect.left as f32 + CARD_PAD as f32 + indent as f32;
+                let text_width = (rect.width - CARD_PAD * 2 - CLOSE_SIZE - indent) as f32;
                 let title = self.layout(&title_text(toast), &self.title_format, text_width)?;
                 let title_top = rect.top as f32 + CARD_PAD as f32;
                 unsafe {
@@ -531,6 +543,24 @@ mod windows_impl {
             }
 
             unsafe { self.target.EndDraw(None, None)? };
+
+            // App icons go on top of the Direct2D output: the card title is shifted right to make room.
+            for (index, rect) in cards {
+                let Some(exe) = toasts[*index].source_exe.as_deref() else {
+                    continue;
+                };
+                let handle = crate::icon::small_icon(exe);
+                if handle == 0 {
+                    continue;
+                }
+                let icon = HICON(handle as *mut core::ffi::c_void);
+                let size = to_pixels(ICON_SIZE, self.scale);
+                let x = to_pixels((rect.left + CARD_PAD) as i32, self.scale);
+                let y = to_pixels((rect.top + CARD_PAD) as i32, self.scale);
+                unsafe {
+                    let _ = DrawIconEx(mem_dc, x, y, icon, size, size, 0, None, DI_NORMAL);
+                }
+            }
             Ok(())
         }
 
@@ -658,26 +688,27 @@ mod tests {
     }
 
     #[test]
-    fn stack_places_button_below_cards_at_top() {
+    fn button_is_always_on_top() {
         let sizes = [CardSize { title: 20.0, body: 0.0 }, CardSize { title: 20.0, body: 0.0 }];
-        let (cards, button, height) = stack_layout(&sizes, false, 100);
-        assert_eq!(cards.len(), 2);
-        let button = button.expect("button");
-        assert!(button.top > cards[1].1.top);
-        assert_eq!(height, button.top + BUTTON_HEIGHT + PAD);
+        for from_bottom in [false, true] {
+            let (cards, button, _) = stack_layout(&sizes, from_bottom, 100, 10_000);
+            assert_eq!(cards.len(), 2);
+            let button = button.expect("button");
+            assert!(cards.iter().all(|(_, rect)| rect.top > button.top + BUTTON_HEIGHT));
+        }
     }
 
     #[test]
-    fn stack_places_button_above_cards_at_bottom() {
-        let sizes = [CardSize { title: 20.0, body: 0.0 }];
-        let (cards, button, _) = stack_layout(&sizes, true, 100);
-        let button = button.expect("button");
-        assert!(button.top < cards[0].1.top);
+    fn cards_past_the_screen_are_left_out_but_not_removed() {
+        let sizes = vec![CardSize { title: 20.0, body: 0.0 }; 10];
+        let (cards, _, height) = stack_layout(&sizes, false, 100, 200);
+        assert!(cards.len() < sizes.len());
+        assert!(height <= 200);
     }
 
     #[test]
     fn empty_stack_has_no_button() {
-        let (cards, button, height) = stack_layout(&[], false, 100);
+        let (cards, button, height) = stack_layout(&[], false, 100, 500);
         assert!(cards.is_empty());
         assert!(button.is_none());
         assert_eq!(height, PAD * 2);

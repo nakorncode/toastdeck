@@ -4,6 +4,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod capture;
+mod icon;
 mod model;
 mod overlay;
 mod platform;
@@ -33,7 +34,7 @@ use windows::Win32::UI::WindowsAndMessaging::{
 };
 
 use capture::read_or_request_access;
-use model::{CaptureAccess, Event, Toast, CAPTURE_ENABLED, CAPTURE_READY, DEBUG_TOAST_ID, MAX_TOASTS, MAIN_HWND, WM_APP_EVENTS};
+use model::{CaptureAccess, Event, Toast, CAPTURE_ENABLED, CAPTURE_READY, DEBUG_TOAST_ID, MAIN_HWND, WM_APP_EVENTS};
 use overlay::{Hit, Overlay};
 use settings::{load_settings, save_settings, AppSettings};
 use sound::{is_known_preset, SOUND_PRESETS};
@@ -66,20 +67,10 @@ impl App {
         }
     }
 
-    /// Same insertion rules as v2: newest first, no duplicate ids, the cap drops the oldest non-debug card.
+    /// Newest first, no duplicate ids. Every card is kept; the overlay only draws the ones that fit on screen.
     fn push(&mut self, toast: Toast, play_sound: bool) {
         self.toasts.retain(|item| item.id != toast.id);
         self.toasts.insert(0, toast);
-        if self.toasts.len() > MAX_TOASTS {
-            match self.toasts.iter().rposition(|item| item.id != DEBUG_TOAST_ID) {
-                Some(index) => {
-                    self.toasts.remove(index);
-                }
-                None => {
-                    self.toasts.pop();
-                }
-            }
-        }
         if play_sound && self.settings.sound_enabled {
             if let Err(error) = sound::play(&self.settings.sound_preset) {
                 crate::platform::log(&format!("sound: {error}"));
