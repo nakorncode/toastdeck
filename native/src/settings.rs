@@ -160,13 +160,30 @@ pub fn load_settings() -> AppSettings {
     let Ok(bytes) = fs::read(&path) else {
         return AppSettings::default();
     };
-    match serde_json::from_slice(&bytes) {
+    match parse_settings(&bytes) {
         Ok(settings) => settings,
         Err(_) => {
-            let _ = fs::rename(&path, path.with_extension("json.bad"));
+            let _ = fs::rename(&path, unused_bad_path(&path));
             AppSettings::default()
         }
     }
+}
+
+/// Parses settings bytes. Errors leave the caller to back up the broken file.
+pub fn parse_settings(bytes: &[u8]) -> Result<AppSettings, serde_json::Error> {
+    serde_json::from_slice(bytes)
+}
+
+/// First free `settings.json.bad`, `settings.json.bad.1`, ... so an older backup is never overwritten.
+pub fn unused_bad_path(path: &std::path::Path) -> PathBuf {
+    let base = path.with_extension("json.bad");
+    if !base.exists() {
+        return base;
+    }
+    (1..)
+        .map(|n| path.with_extension(format!("json.bad.{n}")))
+        .find(|candidate| !candidate.exists())
+        .unwrap_or(base)
 }
 
 pub fn save_settings(settings: &AppSettings) -> Result<(), String> {
@@ -198,4 +215,21 @@ mod tests {
         assert!(settings.high_priority);
     }
 
+    #[test]
+    fn broken_json_is_rejected() {
+        assert!(parse_settings(b"{ not json").is_err());
+    }
+
+    #[test]
+    fn bad_backup_never_overwrites_an_older_one() {
+        let dir = std::env::temp_dir().join(format!("toastdesk-bad-{}", std::process::id()));
+        let _ = fs::create_dir_all(&dir);
+        let path = dir.join("settings.json");
+        let first = unused_bad_path(&path);
+        fs::write(&first, b"old backup").unwrap();
+        let second = unused_bad_path(&path);
+        assert_ne!(first, second);
+        assert!(!second.exists());
+        let _ = fs::remove_dir_all(&dir);
+    }
 }
