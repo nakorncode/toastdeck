@@ -7,7 +7,6 @@ use std::time::Instant;
 
 pub const DEBUG_TOAST_ID: &str = "debug-sample";
 pub const CAPTURE_DENIED_ID: &str = "capture-denied";
-pub const MAX_TOASTS: usize = 4;
 
 /// Posted to the UI window whenever a background event is queued.
 pub const WM_APP_EVENTS: u32 = 0x8001;

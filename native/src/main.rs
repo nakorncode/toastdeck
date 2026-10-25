@@ -225,20 +225,15 @@ impl App {
         }
     }
 
-    /// Native toast first, then an overlay card only when capture will not show one itself (as v2).
+    /// Shows the "started" card in the overlay. The WinRT notification is not used here: Windows does not
+    /// reliably display notifications sent by this app, so the card must always come from the overlay.
     fn show_launch(&mut self) {
         if !self.settings.show_launch_toast {
             return;
         }
         const TITLE: &str = "ToastDesk";
         const BODY: &str = "ToastDesk has started.";
-        if let Err(error) = platform::show_native_toast(TITLE, BODY) {
-            crate::platform::log(&format!("launch toast: {error}"));
-        }
-        let capture_will_display = self.settings.windows_capture && self.access == CaptureAccess::Allowed;
-        if !capture_will_display {
-            self.push(Toast::new("launch", TITLE, BODY), true);
-        }
+        self.push(Toast::new("launch", TITLE, BODY), true);
     }
 
     /// Removes cards whose duration has passed. Infinite cards are never removed.
@@ -381,6 +376,9 @@ fn run() -> windows::core::Result<()> {
         let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     }
     platform::set_process_identity();
+    if let Err(error) = platform::register_aumid() {
+        platform::log(&error);
+    }
     // Called by the installer and uninstaller before they stop the app.
     if std::env::args().any(|arg| arg == "--restore-windows-toasts") {
         restore_windows_toasts_only();

@@ -74,8 +74,10 @@ pub fn apply_startup(enabled: bool) {
     }
 }
 
+/// Registers ToastDesk's AppUserModelID display name and icon, so Windows shows the right icon for
+/// notifications that name this app. The icon is the icon.png next to the running exe.
 #[cfg(windows)]
-fn register_aumid() -> Result<(), String> {
+pub fn register_aumid() -> Result<(), String> {
     use winreg::{enums::HKEY_CURRENT_USER, RegKey};
 
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
@@ -99,23 +101,13 @@ fn register_aumid() -> Result<(), String> {
     Ok(())
 }
 
-/// Shows a plain WinRT toast without sound.
-#[cfg(windows)]
-pub fn show_native_toast(title: &str, body: &str) -> Result<(), String> {
-    use tauri_winrt_notification::{Duration, Toast};
-
-    register_aumid()?;
-    Toast::new(AUMID)
-        .title(title)
-        .text1(body)
-        .duration(Duration::Long)
-        .sound(None)
-        .show()
-        .map_err(|error| format!("Could not send WinRT notification: {error}"))
-}
-
 #[cfg(not(windows))]
 pub fn set_process_identity() {}
+
+#[cfg(not(windows))]
+pub fn register_aumid() -> Result<(), String> {
+    Ok(())
+}
 
 #[cfg(not(windows))]
 pub fn acquire_single_instance() -> bool {
@@ -127,11 +119,6 @@ pub fn apply_priority(_enabled: bool) {}
 
 #[cfg(not(windows))]
 pub fn apply_startup(_enabled: bool) {}
-
-#[cfg(not(windows))]
-pub fn show_native_toast(_title: &str, _body: &str) -> Result<(), String> {
-    Ok(())
-}
 
 /// Appends a line to `%LOCALAPPDATA%\ToastDesk.v3\app.log`. The release build has no console,
 /// so errors that would otherwise go to stderr are written here.
