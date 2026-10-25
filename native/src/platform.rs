@@ -86,6 +86,16 @@ fn register_aumid() -> Result<(), String> {
         .map_err(|error| format!("Could not write notification display name: {error}"))?;
     key.set_value("IconBackgroundColor", &"0")
         .map_err(|error| format!("Could not write notification icon color: {error}"))?;
+    // Point the icon at the icon.png next to the running exe, so an installed copy finds its own icon
+    // and an older path from another build is replaced.
+    if let Some(dir) = std::env::current_exe().ok().and_then(|exe| exe.parent().map(|dir| dir.to_path_buf())) {
+        let icon = dir.join("icon.png");
+        if icon.is_file() {
+            let uri = format!("file:///{}", icon.display().to_string().replace('\\', "/"));
+            key.set_value("IconUri", &uri)
+                .map_err(|error| format!("Could not write notification icon: {error}"))?;
+        }
+    }
     Ok(())
 }
 

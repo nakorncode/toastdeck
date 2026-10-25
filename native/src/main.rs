@@ -197,9 +197,9 @@ impl App {
                 self.sync_debug_toast();
             }
             Command::TestToast => {
-                if let Err(error) = platform::show_native_toast("Test", "ToastDesk overlay is working.") {
-                    crate::platform::log(&format!("native toast: {error}"));
-                }
+                // Shows a card in the overlay directly. A WinRT notification from this app is not
+                // always displayed by Windows, so it cannot be used to check the overlay.
+                self.push(Toast::new("test", "Test", "ToastDesk overlay is working."), false);
             }
             Command::Exit => unsafe {
                 let _ = DestroyWindow(self.hwnd);
