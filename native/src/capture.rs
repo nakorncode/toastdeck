@@ -1,44 +1,28 @@
+//! Captures Windows toast notifications through `UserNotificationListener`.
+//! Port of the v2 capture loop: same polling, same access rules, same text rules.
+
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Manager};
 
-use crate::{push_toast, remove_toast, AppState, Toast};
+use crate::model::{
+    post_event, Event, CaptureAccess, Toast, CAPTURE_DENIED_ID, CAPTURE_ENABLED, CAPTURE_READY,
+    CAPTURE_RETRY,
+};
 
-pub const CAPTURE_DENIED_ID: &str = "capture-denied";
 const EVENT_BACKUP_POLL: Duration = Duration::from_secs(5);
 const FAST_POLL: Duration = Duration::from_millis(500);
 const WAIT_SLICE: Duration = Duration::from_millis(250);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CaptureAccess {
-    Disabled,
-    Allowed,
-    Denied,
-    Unspecified,
-    Unavailable,
+static DENIED_ANNOUNCED: AtomicBool = AtomicBool::new(false);
+
+pub fn start() {
+    std::thread::spawn(run_loop);
 }
 
-impl CaptureAccess {
-    pub fn tooltip(self) -> &'static str {
-        match self {
-            Self::Disabled => "ToastDesk — capture off",
-            Self::Allowed => "ToastDesk — capture on",
-            Self::Denied => "ToastDesk — notification access denied",
-            Self::Unspecified => "ToastDesk — notification access needed",
-            Self::Unavailable => "ToastDesk — capture unavailable",
-        }
-    }
-}
-
-pub fn start(app: AppHandle) {
-    std::thread::spawn(move || run_loop(app));
-}
-
-pub fn request_retry(app: &AppHandle) {
-    app.state::<AppState>()
-        .capture_retry
-        .store(true, Ordering::SeqCst);
+pub fn request_retry() {
+    CAPTURE_RETRY.store(true, Ordering::SeqCst);
 }
 
 pub fn overlay_id(windows_id: u32) -> String {
@@ -62,82 +46,10 @@ pub fn title_and_body(texts: &[String], source: Option<&str>, id: u32) -> (Strin
     }
 }
 
-fn capture_enabled(app: &AppHandle) -> bool {
-    app.state::<AppState>()
-        .settings
-        .lock()
-        .map(|settings| settings.windows_capture)
-        .unwrap_or(true)
-}
-
-fn retry_pending(app: &AppHandle) -> bool {
-    app.state::<AppState>()
-        .capture_retry
-        .load(Ordering::SeqCst)
-}
-
-fn take_retry(app: &AppHandle) -> bool {
-    app.state::<AppState>()
-        .capture_retry
-        .swap(false, Ordering::SeqCst)
-}
-
-fn set_access(app: &AppHandle, access: CaptureAccess) {
-    if let Ok(mut current) = app.state::<AppState>().capture_access.lock() {
-        *current = access;
-    }
-    apply_tooltip(app, access.tooltip());
-}
-
-fn apply_tooltip(app: &AppHandle, text: &str) {
-    let state = app.state::<AppState>();
-    let Ok(tray) = state.tray.lock() else {
-        return;
-    };
-    if let Some(tray) = tray.as_ref() {
-        let _ = tray.set_tooltip(Some(text));
-    }
-}
-
-fn mark_capture_ready(app: &AppHandle) {
-    app.state::<AppState>()
-        .capture_ready
-        .store(true, Ordering::SeqCst);
-}
-
-fn announce_denied(app: &AppHandle) {
-    let announced = &app.state::<AppState>().capture_denied_announced;
-    if announced.swap(true, Ordering::SeqCst) {
-        return;
-    }
-    push_toast(
-        app,
-        Toast::overlay(
-            CAPTURE_DENIED_ID,
-            "ToastDesk",
-            "Notification access is off. Right-click the tray and choose Retry notification access.",
-            "capture",
-        ),
-        false,
-    );
-}
-
-fn clear_denied(app: &AppHandle) {
-    app.state::<AppState>()
-        .capture_denied_announced
-        .store(false, Ordering::SeqCst);
-    remove_toast(app, CAPTURE_DENIED_ID);
-}
-
-fn wait_for_next(
-    app: &AppHandle,
-    wake_rx: &mpsc::Receiver<()>,
-    interval: Duration,
-    stop: &AtomicBool,
-) {
+fn wait_for_next(wake_rx: &mpsc::Receiver<()>, interval: Duration) {
     let deadline = Instant::now() + interval;
     loop {
-        if stop.load(Ordering::SeqCst) || retry_pending(app) || !capture_enabled(app) {
+        if CAPTURE_RETRY.load(Ordering::SeqCst) || !CAPTURE_ENABLED.load(Ordering::SeqCst) {
             return;
         }
         let remaining = deadline.saturating_duration_since(Instant::now());
@@ -151,53 +63,78 @@ fn wait_for_next(
     }
 }
 
+fn set_access(access: CaptureAccess) {
+    post_event(Event::Access(access));
+}
+
+fn announce_denied() {
+    if DENIED_ANNOUNCED.swap(true, Ordering::SeqCst) {
+        return;
+    }
+    post_event(Event::Push {
+        toast: Toast::new(
+            CAPTURE_DENIED_ID,
+            "ToastDesk",
+            "Notification access is off. Right-click the tray and choose Retry notification access.",
+        ),
+        play_sound: false,
+    });
+}
+
+fn clear_denied() {
+    DENIED_ANNOUNCED.store(false, Ordering::SeqCst);
+    post_event(Event::Remove(CAPTURE_DENIED_ID.to_string()));
+}
+
 #[cfg(windows)]
-fn run_loop(app: AppHandle) {
-    let stop = AtomicBool::new(false);
+fn run_loop() {
+    use windows::UI::Notifications::Management::UserNotificationListener;
+
     let (wake_tx, wake_rx) = mpsc::sync_channel::<()>(1);
     let mut seeded = false;
-    let mut listener = None;
+    let mut listener: Option<UserNotificationListener> = None;
+    let mut seen: HashSet<u32> = HashSet::new();
     let mut poll = FAST_POLL;
 
     loop {
-        let force = take_retry(&app);
-        if !capture_enabled(&app) {
+        let force = CAPTURE_RETRY.swap(false, Ordering::SeqCst);
+        if !CAPTURE_ENABLED.load(Ordering::SeqCst) {
             listener = None;
             seeded = false;
             poll = FAST_POLL;
-            set_access(&app, CaptureAccess::Disabled);
-            mark_capture_ready(&app);
+            set_access(CaptureAccess::Disabled);
+            CAPTURE_READY.store(true, Ordering::SeqCst);
             if force {
-                let _ = ensure_access(&app, true);
+                let _ = ensure_access(true);
             }
-            wait_for_next(&app, &wake_rx, WAIT_SLICE, &stop);
+            wait_for_next(&wake_rx, WAIT_SLICE);
             continue;
         }
 
         if force || listener.is_none() {
-            match ensure_access(&app, force) {
+            match ensure_access(force) {
                 Ok(CaptureAccess::Allowed) => {
-                    clear_denied(&app);
-                    set_access(&app, CaptureAccess::Allowed);
+                    clear_denied();
+                    set_access(CaptureAccess::Allowed);
                 }
                 Ok(access) => {
                     listener = None;
                     seeded = false;
-                    set_access(&app, access);
-                    mark_capture_ready(&app);
+                    set_access(access);
+                    CAPTURE_READY.store(true, Ordering::SeqCst);
                     if matches!(access, CaptureAccess::Denied | CaptureAccess::Unspecified) {
-                        announce_denied(&app);
+                        announce_denied();
                     }
-                    wait_for_next(&app, &wake_rx, FAST_POLL, &stop);
+                    wait_for_next(&wake_rx, FAST_POLL);
                     continue;
                 }
                 Err(error) => {
                     listener = None;
                     seeded = false;
-                    set_access(&app, CaptureAccess::Unavailable);
-                    mark_capture_ready(&app);
+                    set_access(CaptureAccess::Unavailable);
+                    CAPTURE_READY.store(true, Ordering::SeqCst);
                     eprintln!("capture: {error}");
-                    wait_for_next(&app, &wake_rx, FAST_POLL, &stop);
+                    wait_for_next(&wake_rx, FAST_POLL);
                     continue;
                 }
             }
@@ -206,10 +143,10 @@ fn run_loop(app: AppHandle) {
                 match current_listener() {
                     Ok(current) => listener = Some(current),
                     Err(error) => {
-                        set_access(&app, CaptureAccess::Unavailable);
-                        mark_capture_ready(&app);
+                        set_access(CaptureAccess::Unavailable);
+                        CAPTURE_READY.store(true, Ordering::SeqCst);
                         eprintln!("capture: {error}");
-                        wait_for_next(&app, &wake_rx, FAST_POLL, &stop);
+                        wait_for_next(&wake_rx, FAST_POLL);
                         continue;
                     }
                 }
@@ -217,56 +154,40 @@ fn run_loop(app: AppHandle) {
         }
 
         let Some(current) = listener.as_ref() else {
-            wait_for_next(&app, &wake_rx, FAST_POLL, &stop);
+            wait_for_next(&wake_rx, FAST_POLL);
             continue;
         };
 
         if !seeded {
-            seed_existing(&app, current);
+            seed_existing(current, &mut seen);
             seeded = true;
             poll = subscribe_changes(current, wake_tx.clone());
-            mark_capture_ready(&app);
+            CAPTURE_READY.store(true, Ordering::SeqCst);
         }
 
-        capture_new(&app, current);
-        wait_for_next(&app, &wake_rx, poll, &stop);
+        capture_new(current, &mut seen);
+        wait_for_next(&wake_rx, poll);
     }
 }
 
 #[cfg(not(windows))]
-fn run_loop(app: AppHandle) {
-    set_access(&app, CaptureAccess::Unavailable);
-    mark_capture_ready(&app);
+fn run_loop() {
+    set_access(CaptureAccess::Unavailable);
+    CAPTURE_READY.store(true, Ordering::SeqCst);
 }
 
+/// Reads or requests notification access on the UI thread, as v2 did.
+/// The capture thread waits for the answer through a reply channel.
 #[cfg(windows)]
-fn current_listener() -> Result<windows::UI::Notifications::Management::UserNotificationListener, String>
-{
-    windows::UI::Notifications::Management::UserNotificationListener::Current()
-        .map_err(|error| format!("UserNotificationListener is unavailable: {error}"))
+fn ensure_access(force_prompt: bool) -> Result<CaptureAccess, String> {
+    let (reply_tx, reply_rx) = mpsc::channel();
+    post_event(Event::AccessRequest { force: force_prompt, reply: reply_tx });
+    reply_rx.recv().map_err(|error| error.to_string())?
 }
 
+/// Runs on the UI thread when an `AccessRequest` event is handled.
 #[cfg(windows)]
-fn ensure_access(app: &AppHandle, force_prompt: bool) -> Result<CaptureAccess, String> {
-    on_ui_thread(app, move || read_or_request_access(force_prompt))
-}
-
-#[cfg(windows)]
-fn on_ui_thread<T, F>(app: &AppHandle, f: F) -> Result<T, String>
-where
-    T: Send + 'static,
-    F: FnOnce() -> Result<T, String> + Send + 'static,
-{
-    let (tx, rx) = mpsc::channel();
-    app.run_on_main_thread(move || {
-        let _ = tx.send(f());
-    })
-    .map_err(|error| error.to_string())?;
-    rx.recv().map_err(|error| error.to_string())?
-}
-
-#[cfg(windows)]
-fn read_or_request_access(force_prompt: bool) -> Result<CaptureAccess, String> {
+pub fn read_or_request_access(force_prompt: bool) -> Result<CaptureAccess, String> {
     use windows::UI::Notifications::Management::UserNotificationListenerAccessStatus;
 
     let listener = current_listener()?;
@@ -282,6 +203,13 @@ fn read_or_request_access(force_prompt: bool) -> Result<CaptureAccess, String> {
     }
 
     Ok(map_access(access))
+}
+
+#[cfg(windows)]
+fn current_listener() -> Result<windows::UI::Notifications::Management::UserNotificationListener, String>
+{
+    windows::UI::Notifications::Management::UserNotificationListener::Current()
+        .map_err(|error| format!("UserNotificationListener is unavailable: {error}"))
 }
 
 #[cfg(windows)]
@@ -327,29 +255,23 @@ fn subscribe_changes(
 
 #[cfg(windows)]
 fn seed_existing(
-    app: &AppHandle,
     listener: &windows::UI::Notifications::Management::UserNotificationListener,
+    seen: &mut HashSet<u32>,
 ) {
-    let notifications = match current_toasts(listener) {
-        Ok(notifications) => notifications,
-        Err(error) => {
-            write_capture_log(0, &error);
-            return;
+    match current_toasts(listener) {
+        Ok(notifications) => {
+            for (id, _) in notifications {
+                seen.insert(id);
+            }
         }
-    };
-    let state = app.state::<AppState>();
-    let Ok(mut ids) = state.captured_ids.lock() else {
-        return;
-    };
-    for (id, _) in notifications {
-        ids.insert(id);
+        Err(error) => write_capture_log(0, &error),
     }
 }
 
 #[cfg(windows)]
 fn capture_new(
-    app: &AppHandle,
     listener: &windows::UI::Notifications::Management::UserNotificationListener,
+    seen: &mut HashSet<u32>,
 ) {
     let notifications = match current_toasts(listener) {
         Ok(notifications) => notifications,
@@ -360,30 +282,15 @@ fn capture_new(
     };
 
     for (id, notification) in notifications {
-        let is_new = {
-            let state = app.state::<AppState>();
-            let Ok(mut ids) = state.captured_ids.lock() else {
-                continue;
-            };
-            ids.insert(id)
-        };
-        if !is_new {
+        if !seen.insert(id) {
             continue;
         }
-
         match extract_details(id, &notification) {
             Ok((title, body, aumid)) => {
-                push_toast(
-                    app,
-                    Toast {
-                        id: overlay_id(id),
-                        title,
-                        body,
-                        kind: "windows".into(),
-                        source_app_user_model_id: aumid,
-                    },
-                    true,
-                );
+                let mut toast = Toast::new(overlay_id(id), title, body);
+                toast.captured = true;
+                toast.source_aumid = aumid;
+                post_event(Event::Push { toast, play_sound: true });
             }
             Err(error) => write_capture_log(id, &error),
         }
@@ -480,14 +387,15 @@ fn extract_source(
     (name, aumid)
 }
 
+/// Same log file as v2, in the v3 settings folder.
 fn write_capture_log(id: u32, message: &str) {
     let Some(root) = std::env::var_os("LOCALAPPDATA") else {
         return;
     };
-    let dir = std::path::PathBuf::from(root).join("ToastDesk.v2");
+    let dir = std::path::PathBuf::from(root).join("ToastDesk.v3");
     if std::fs::create_dir_all(&dir).is_err() {
         return;
-    };
+    }
     let line = format!("{:?} Notification ID {id}: {message}\n", std::time::SystemTime::now());
     let _ = std::fs::OpenOptions::new()
         .create(true)
@@ -499,6 +407,7 @@ fn write_capture_log(id: u32, message: &str) {
         });
 }
 
+/// Opens the app that sent a notification through its AppUserModelID.
 pub fn open_source_app(aumid: &str) -> Result<(), String> {
     std::process::Command::new("explorer.exe")
         .arg(format!("shell:AppsFolder\\{aumid}"))

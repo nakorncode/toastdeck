@@ -1,7 +1,12 @@
+//! Settings kept in `%LOCALAPPDATA%\ToastDesk.v3\settings.json`.
+//! Field names match v2 so a copied file reads without changes.
+
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 
 pub const DEFAULT_SOUND_PRESET: &str = "aosp-argon";
+const APP_FOLDER: &str = "ToastDesk.v3";
+const LEGACY_FOLDER: &str = "ToastDesk.v2";
 
 fn default_true() -> bool {
     true
@@ -34,20 +39,6 @@ impl OverlayPlacement {
         Self::BottomRight,
     ];
 
-    pub fn id(self) -> &'static str {
-        match self {
-            Self::TopLeft => "topLeft",
-            Self::TopCenter => "topCenter",
-            Self::TopRight => "topRight",
-            Self::MiddleLeft => "middleLeft",
-            Self::Center => "center",
-            Self::MiddleRight => "middleRight",
-            Self::BottomLeft => "bottomLeft",
-            Self::BottomCenter => "bottomCenter",
-            Self::BottomRight => "bottomRight",
-        }
-    }
-
     pub fn label(self) -> &'static str {
         match self {
             Self::TopLeft => "Top left",
@@ -62,8 +53,9 @@ impl OverlayPlacement {
         }
     }
 
-    pub fn from_id(id: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|placement| placement.id() == id)
+
+    pub fn from_bottom(self) -> bool {
+        matches!(self, Self::BottomLeft | Self::BottomCenter | Self::BottomRight)
     }
 }
 
@@ -77,21 +69,7 @@ pub enum CardDuration {
 }
 
 impl CardDuration {
-    pub const ALL: [Self; 4] = [
-        Self::Seconds10,
-        Self::Seconds30,
-        Self::Minute,
-        Self::Infinite,
-    ];
-
-    pub fn id(self) -> &'static str {
-        match self {
-            Self::Seconds10 => "10s",
-            Self::Seconds30 => "30s",
-            Self::Minute => "1min",
-            Self::Infinite => "infinite",
-        }
-    }
+    pub const ALL: [Self; 4] = [Self::Seconds10, Self::Seconds30, Self::Minute, Self::Infinite];
 
     pub fn label(self) -> &'static str {
         match self {
@@ -109,10 +87,6 @@ impl CardDuration {
             Self::Minute => Some(60_000),
             Self::Infinite => None,
         }
-    }
-
-    pub fn from_id(id: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|duration| duration.id() == id)
     }
 }
 
@@ -149,19 +123,42 @@ impl Default for AppSettings {
     }
 }
 
-pub fn settings_path() -> Option<PathBuf> {
-    std::env::var_os("LOCALAPPDATA")
-        .map(|root| PathBuf::from(root).join("ToastDesk.v2").join("settings.json"))
+fn local_app_data() -> Option<PathBuf> {
+    std::env::var_os("LOCALAPPDATA").map(PathBuf::from)
 }
 
+pub fn settings_path() -> Option<PathBuf> {
+    local_app_data().map(|root| root.join(APP_FOLDER).join("settings.json"))
+}
+
+fn legacy_settings_path() -> Option<PathBuf> {
+    local_app_data().map(|root| root.join(LEGACY_FOLDER).join("settings.json"))
+}
+
+/// Loads v3 settings. On the first run, copies the v2 file once and never writes to v2.
+/// A file that cannot be parsed is kept as `settings.json.bad` before defaults are used.
 pub fn load_settings() -> AppSettings {
     let Some(path) = settings_path() else {
         return AppSettings::default();
     };
+    if !path.exists() {
+        if let Some(legacy) = legacy_settings_path().filter(|legacy| legacy.is_file()) {
+            if let Some(dir) = path.parent() {
+                let _ = fs::create_dir_all(dir);
+            }
+            let _ = fs::copy(&legacy, &path);
+        }
+    }
     let Ok(bytes) = fs::read(&path) else {
         return AppSettings::default();
     };
-    serde_json::from_slice(&bytes).unwrap_or_default()
+    match serde_json::from_slice(&bytes) {
+        Ok(settings) => settings,
+        Err(_) => {
+            let _ = fs::rename(&path, path.with_extension("json.bad"));
+            AppSettings::default()
+        }
+    }
 }
 
 pub fn save_settings(settings: &AppSettings) -> Result<(), String> {
@@ -178,7 +175,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn missing_windows_capture_defaults_on() {
+    fn missing_fields_default_on() {
         let json = r#"{
             "launchOnStartup": true,
             "soundEnabled": true,
@@ -190,5 +187,7 @@ mod tests {
         let settings: AppSettings = serde_json::from_str(json).expect("legacy settings");
         assert!(settings.windows_capture);
         assert!(settings.show_launch_toast);
+        assert!(settings.high_priority);
     }
+
 }

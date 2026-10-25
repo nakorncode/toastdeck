@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ToastDesk v3 per-user MSI (WiX 3). Built by scripts\build-installers.ps1.
+     Needs -dVersion=<x.y.z> and -dStageDir=<folder with ToastDeskV3.exe, AOSP-LICENSE.md, sounds\*.wav>.
+     Per-user installs need registry key paths under HKCU for every component (ICE38). -->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*"
+           Name="ToastDesk v3"
+           Language="1033"
+           Version="$(var.Version)"
+           Manufacturer="NakornCode"
+           UpgradeCode="6F0C2D4A-3B1E-4E8F-9A55-7D2C1B0E4A13">
+    <Package InstallerVersion="200" Compressed="yes" InstallScope="perUser" Description="ToastDesk v3 installer" />
+    <MajorUpgrade DowngradeErrorMessage="A newer version of ToastDesk v3 is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Feature Id="Main" Title="ToastDesk v3" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentGroupRef Id="SoundFiles" />
+      <ComponentRef Id="StartMenuEntries" />
+      <ComponentRef Id="StartupEntry" />
+    </Feature>
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="LocalAppDataFolder">
+        <Directory Id="INSTALLFOLDER" Name="ToastDesk.v3">
+          <Directory Id="SOUNDSFOLDER" Name="sounds" />
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="AppMenuFolder" Name="ToastDesk v3" />
+      </Directory>
+    </Directory>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="AppExe" Guid="7C4C1ED7-14E0-4A3E-B91F-0C7076407F00">
+        <File Id="ToastDeskV3Exe" Source="$(var.StageDir)\ToastDeskV3.exe" />
+        <RegistryValue Root="HKCU" Key="Software\NakornCode\ToastDesk.v3\Components" Name="AppExe" Type="integer" Value="1" KeyPath="yes" />
+        <RemoveFolder Id="RemoveInstallFolder" Directory="INSTALLFOLDER" On="uninstall" />
+      </Component>
+      <Component Id="License" Guid="0F221245-7F98-4635-BDD4-EAB4812E4FC9">
+        <File Id="AospLicense" Source="$(var.StageDir)\AOSP-LICENSE.md" />
+        <RegistryValue Root="HKCU" Key="Software\NakornCode\ToastDesk.v3\Components" Name="License" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- The app keeps this value in sync with the tray setting. Removed on uninstall. -->
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="StartupEntry" Guid="2F0F73C7-46C8-4190-8BF9-51AFDA58FE6E">
+        <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="ToastDesk.v3" Type="string" Value="&quot;[INSTALLFOLDER]ToastDeskV3.exe&quot;" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="AppMenuFolder">
+      <Component Id="StartMenuEntries" Guid="E4F169DB-0454-43F0-9F07-70DD3F5E81F3">
+        <Shortcut Id="AppShortcut" Name="ToastDesk v3" Target="[INSTALLFOLDER]ToastDeskV3.exe" WorkingDirectory="INSTALLFOLDER" />
+        <RemoveFolder Id="RemoveAppMenuFolder" Directory="AppMenuFolder" On="uninstall" />
+        <RegistryValue Root="HKCU" Key="Software\NakornCode\ToastDesk.v3\Components" Name="StartMenuEntries" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+  </Product>
+
+  <Fragment>
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <ComponentRef Id="AppExe" />
+      <ComponentRef Id="License" />
+    </ComponentGroup>
+  </Fragment>
+
+  <Fragment>
+    <ComponentGroup Id="SoundFiles" Directory="SOUNDSFOLDER">
+      <Component Id="Snd_Acrux" Guid="9D73B5CE-67B2-4696-A828-AFBD0DAC305B"><File Id="F_Acrux" Source="$(var.StageDir)\sounds\aosp-acrux.wav" /><RegistryValue Root="HKCU" Key="Software\NakornCode\ToastDesk.v3\Components" Name="Snd_Acrux" Type="integer" Value="1" KeyPath="yes" /><RemoveFolder Id="RF_Snd_Acrux" Directory="SOUNDSFOLDER" On="uninstall" /></Component>
+      <Component Id="Snd_Adara" Guid="08F6A00B-45FE-4E55-A31D-433C98C0004D"><File Id="F_Adara" Source="$(var.StageDir)\sounds\aosp-adara.wav" /><RegistryValue Root="HKCU" Key="Software\NakornCode\ToastDesk.v3\Components" Name="Snd_Adara" Type="integer" Value="1" KeyPath="yes" /></Component>
+      <Component Id="Snd_Altair" Guid="6ECBFC30-62BE-4BD2-84C6-BFCF7A16C0F7"><File Id="F_Altair" Source="$(var.StageDir)\sounds\aosp-altair.wav" /><RegistryValue Root="HKCU" Key="Software\NakornCode\ToastDesk.v3\Components" Name="Snd_Altair" Type="integer" Value="1" KeyPath="yes" /></Component>
+      <Component Id="Snd_Alya" Guid="B1DFE7B3-AC41-4150-86C2-8ED88661CEF3"><File Id="F_Alya" Source="$(var.StageDir)\sounds\aosp-alya.wav" /><RegistryValue Root="HKCU" Key="Software\NakornCode\ToastDesk.v3\Components" Name="Snd_Alya" Type="integer" Value="1" KeyPath="yes" /></Component>
+      <Component Id="Snd_Antares" Guid="C696EF29-76E6-4DC4-998F-7E4A17F18493"><File Id="F_Antares" Source="$(var.StageDir)\sounds\aosp-antares.wav" /><RegistryValue Root="HKCU" Key="Software\NakornCode\ToastDesk.v3\Components" Name="Snd_Antares" Type="integer" Value="1" KeyPath="yes" /></Component>
+      <Component Id="Snd_Argon" Guid="3DA1B3B2-352C-4CDD-B5E8-DD1220CC0F51"><File Id="F_Argon" Source="$(var.StageDir)\sounds\aosp-argon.wav" /><RegistryValue Root="HKCU" Key="Software\NakornCode\ToastDesk.v3\Components" Name="Snd_Argon" Type="integer" Value="1" KeyPath="yes" /></Component>
+      <Component Id="Snd_Capella" Guid="733AB393-F75B-470B-8CFB-D9DEFB785478"><File Id="F_Capella" Source="$(var.StageDir)\sounds\aosp-capella.wav" /><RegistryValue Root="HKCU" Key="Software\NakornCode\ToastDesk.v3\Components" Name="Snd_Capella" Type="integer" Value="1" KeyPath="yes" /></Component>
+      <Component Id="Snd_Vega" Guid="F4B401E1-541F-4E49-8E0E-B0EDB3BD9EF2"><File Id="F_Vega" Source="$(var.StageDir)\sounds\aosp-vega.wav" /><RegistryValue Root="HKCU" Key="Software\NakornCode\ToastDesk.v3\Components" Name="Snd_Vega" Type="integer" Value="1" KeyPath="yes" /></Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

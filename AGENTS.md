@@ -1,48 +1,43 @@
-# ToastDesk agent notes
+# ToastDesk agent notes (v3)
 
-These instructions apply to `G:\NakornCode\git\toastdeck` on **v2** (`main` after merge, or `cursor/toastdesk-v2-tauri-scaffold`).
+This branch is **v3**: a native Win32 + Direct2D app in `native/`. v2 (Tauri + SolidJS) stays on `main`
+and tag `v0.2.0-pre.5`. Do not reintroduce a WebView or Tauri here.
 
-## What this tree is
+## Layout
 
-Unpackaged Tauri 2 + SolidJS + `solid-sonner` tray overlay. Tray settings, Windows notification capture, test toast, sounds, 9-point placement, duration, debug bounds. Identity stays `ToastDesk.v2` until a non-prerelease GitHub Release on `main`.
-
-WPF v1 is **read-only** on branch `v1` / tag `v1-final`. TrayBits is a pattern, not a file dump.
+- `native/src/main.rs`: window procedure, app state, command handling, startup.
+- `native/src/overlay.rs`: layered window, Direct2D/DirectWrite drawing, layout, hit testing (has unit tests).
+- `native/src/tray.rs`: `Shell_NotifyIcon` and the right-click menu.
+- `native/src/capture.rs`: `UserNotificationListener` polling, ported from v2 (same rules).
+- `native/src/model.rs`: toast model and the queue from background threads to the UI thread.
+- `native/src/settings.rs`, `sound.rs`, `platform.rs`: settings file, AOSP sounds, Run key, priority, AUMID.
+- `packaging/windows/`: NSIS and WiX (MSI) scripts. `scripts/build-installers.ps1` builds both.
+- `docs/v3-parity-checklist.md`: what must match v2, and what to check by hand.
 
 ## Identity
 
-Until the first **non-prerelease** GitHub Release on `main`, v2 uses a separate identity:
-
 | Key | Value |
 | --- | --- |
-| Product name | `ToastDesk` |
-| AUMID | `NakornCode.ToastDesk.v2` |
-| Settings | `%LOCALAPPDATA%\ToastDesk.v2\settings.json` |
-| Run key value | `ToastDesk.v2` (`tauri-plugin-autostart` `app_name`) |
-| Tauri identifier | `com.nakorncode.toastdesk.v2` |
-| Executable | `ToastDesk.exe` |
+| Product name | `ToastDesk v3` |
+| AUMID | `NakornCode.ToastDesk.v3` |
+| Settings | `%LOCALAPPDATA%\ToastDesk.v3\settings.json` (first run copies v2 once; v2 is never changed) |
+| Run key value | `ToastDesk.v3` |
+| Executable | `ToastDeskV3.exe` |
+| Install folder | `%LOCALAPPDATA%\ToastDesk.v3` (per user) |
 
-The first **non-prerelease** GitHub Release on `main` **steals** the old ToastDesk identity. Uninstall v1 before that release. Pre-releases (`v0.2.0-pre.*`) keep `ToastDesk.v2`.
+Pre-releases use `v3.0.0-pre.N`. Non-pre-releases are not planned until v3 has parity.
 
 ## Locked product shape
 
-- No user-facing main window. Overlay `"toast"` only.
-- Left-click tray does nothing. Right-click the tray for settings.
-- Overlay is visible only when a toast exists or debug is on.
-- Tray: Launch on startup · High priority on startup · Show toast on launch · Sound (on/off + 8 AOSP presets, default Argon) · Position (9-point, primary) · Duration (10s / 30s / 1 min / infinite) · Capture Windows notifications · Retry notification access · Debug overlay · Show test toast · Exit.
-- First run: sound on, startup on, high priority on, launch toast on, top-right, debug off, duration infinite, capture on.
-- Test toast is obviously fake (`Test`). Debug uses bounds fill + a sample toast, not a decorated window.
-
-## Working style
-
-- PowerShell. `pnpm` for JS; Cargo for `src-tauri`.
-- `pnpm tauri` runs `scripts/with-cargo.mjs` so Cursor terminals get Cargo **and** keep `pnpm` on `Path`.
-- Read [docs/v2-plan.md](docs/v2-plan.md) before capture, packaging, or identity cutover.
+Same as v2 (see `docs/v3-parity-checklist.md`). Tray: Launch on startup · High priority on startup ·
+Show toast on launch · Sound · Position · Duration · Capture Windows notifications · Retry notification access ·
+Debug overlay · Show test toast · Exit. Overlay appears only when a toast exists or debug is on.
+The overlay also has a "Dismiss all" row, which clears captured cards only.
 
 ## Verification
 
 ```powershell
-pnpm typecheck
-pnpm lint
-pnpm build
-cargo check --manifest-path .\src-tauri\Cargo.toml
+cargo test --manifest-path .\native\Cargo.toml
+cargo build --release --manifest-path .\native\Cargo.toml
+powershell -ExecutionPolicy Bypass -File .\scripts\build-installers.ps1 -ProductVersion 3.0.0-pre.1
 ```

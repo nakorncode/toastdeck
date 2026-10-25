@@ -1,0 +1,380 @@
+//! ToastDesk v3: a tray app that shows Windows notifications as an overlay.
+//! Native Win32 + Direct2D; no WebView. Behaviour follows v2 (see AGENTS.md).
+
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+mod capture;
+mod model;
+mod overlay;
+mod platform;
+mod settings;
+mod sound;
+mod tray;
+
+use std::cell::RefCell;
+use std::mem::size_of;
+use std::sync::atomic::Ordering;
+use std::time::{Duration, Instant};
+
+use windows::core::w;
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows::Win32::UI::HiDpi::{SetProcessDpiAwarenessContext, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2};
+use windows::Win32::UI::WindowsAndMessaging::{
+    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, PostQuitMessage,
+    RegisterClassExW, SetTimer, TranslateMessage, MSG, WM_DESTROY, WM_LBUTTONUP, WM_RBUTTONUP,
+    WM_TIMER, WNDCLASSEXW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
+    WS_POPUP,
+};
+
+use capture::read_or_request_access;
+use model::{CaptureAccess, Event, Toast, CAPTURE_ENABLED, CAPTURE_READY, DEBUG_TOAST_ID, MAX_TOASTS, MAIN_HWND, WM_APP_EVENTS};
+use overlay::{Hit, Overlay};
+use settings::{load_settings, save_settings, AppSettings};
+use sound::{is_known_preset, SOUND_PRESETS};
+use tray::{Command, WM_APP_TRAY};
+
+const TIMER_EXPIRE: usize = 1;
+const LAUNCH_WAIT: Duration = Duration::from_secs(10);
+
+/// Everything the UI thread owns. Only touched from the window procedure.
+struct App {
+    hwnd: HWND,
+    settings: AppSettings,
+    toasts: Vec<Toast>,
+    overlay: Overlay,
+    access: CaptureAccess,
+}
+
+thread_local! {
+    static APP: RefCell<Option<App>> = const { RefCell::new(None) };
+}
+
+fn with_app<T>(f: impl FnOnce(&mut App) -> T) -> Option<T> {
+    APP.with(|cell| cell.try_borrow_mut().ok().and_then(|mut slot| slot.as_mut().map(f)))
+}
+
+impl App {
+    fn render(&mut self) {
+        if let Err(error) = self.overlay.render(&self.toasts, self.settings.debug_overlay, self.settings.overlay_placement) {
+            eprintln!("overlay: {error}");
+        }
+    }
+
+    /// Same insertion rules as v2: newest first, no duplicate ids, the cap drops the oldest non-debug card.
+    fn push(&mut self, toast: Toast, play_sound: bool) {
+        self.toasts.retain(|item| item.id != toast.id);
+        self.toasts.insert(0, toast);
+        if self.toasts.len() > MAX_TOASTS {
+            match self.toasts.iter().rposition(|item| item.id != DEBUG_TOAST_ID) {
+                Some(index) => {
+                    self.toasts.remove(index);
+                }
+                None => {
+                    self.toasts.pop();
+                }
+            }
+        }
+        if play_sound && self.settings.sound_enabled {
+            if let Err(error) = sound::play(&self.settings.sound_preset) {
+                eprintln!("sound: {error}");
+            }
+        }
+        self.render();
+    }
+
+    fn remove(&mut self, id: &str) {
+        self.toasts.retain(|item| item.id != id);
+        self.render();
+    }
+
+    fn sync_debug_toast(&mut self) {
+        self.toasts.retain(|item| item.id != DEBUG_TOAST_ID);
+        if self.settings.debug_overlay {
+            self.push(Toast::new(DEBUG_TOAST_ID, "Debug", "Overlay bounds are visible."), false);
+        } else {
+            self.render();
+        }
+    }
+
+    fn save(&self) {
+        if let Err(error) = save_settings(&self.settings) {
+            eprintln!("settings: {error}");
+        }
+    }
+
+    fn apply_side_effects(&mut self) {
+        CAPTURE_ENABLED.store(self.settings.windows_capture, Ordering::SeqCst);
+        platform::apply_startup(self.settings.launch_on_startup);
+        platform::apply_priority(self.settings.high_priority);
+    }
+
+    fn update_settings(&mut self, mutate: impl FnOnce(&mut AppSettings)) {
+        mutate(&mut self.settings);
+        if !is_known_preset(&self.settings.sound_preset) {
+            self.settings.sound_preset = settings::DEFAULT_SOUND_PRESET.into();
+        }
+        self.save();
+        self.apply_side_effects();
+    }
+
+    fn handle_hit(&mut self, hit: Hit) {
+        match hit {
+            Hit::Card(index) => {
+                let Some(toast) = self.toasts.get(index).cloned() else {
+                    return;
+                };
+                if toast.id == DEBUG_TOAST_ID || toast.id == model::CAPTURE_DENIED_ID {
+                    return;
+                }
+                if let Some(aumid) = toast.source_aumid.as_deref() {
+                    if let Err(error) = capture::open_source_app(aumid) {
+                        eprintln!("open toast: {error}");
+                    }
+                }
+                self.remove(&toast.id);
+            }
+            Hit::Close(index) => {
+                if let Some(id) = self.toasts.get(index).map(|toast| toast.id.clone()) {
+                    self.remove(&id);
+                }
+            }
+            Hit::DismissAll => {
+                self.toasts.retain(|toast| !toast.captured);
+                self.render();
+            }
+        }
+    }
+
+    fn handle_command(&mut self, command: Command) {
+        match command {
+            Command::Startup => self.update_settings(|s| s.launch_on_startup = !s.launch_on_startup),
+            Command::HighPriority => self.update_settings(|s| s.high_priority = !s.high_priority),
+            Command::LaunchToast => self.update_settings(|s| s.show_launch_toast = !s.show_launch_toast),
+            Command::SoundEnabled => self.update_settings(|s| s.sound_enabled = !s.sound_enabled),
+            Command::SoundPreset(index) => {
+                if let Some(preset) = SOUND_PRESETS.get(index) {
+                    let id = preset.id.to_string();
+                    self.update_settings(|s| {
+                        s.sound_preset = id;
+                        s.sound_enabled = true;
+                    });
+                }
+            }
+            Command::Position(placement) => self.update_settings(|s| s.overlay_placement = placement),
+            Command::Duration(duration) => self.update_settings(|s| s.card_duration = duration),
+            Command::Capture => self.update_settings(|s| s.windows_capture = !s.windows_capture),
+            Command::CaptureRetry => capture::request_retry(),
+            Command::Debug => {
+                self.update_settings(|s| s.debug_overlay = !s.debug_overlay);
+                self.sync_debug_toast();
+            }
+            Command::TestToast => {
+                if let Err(error) = platform::show_native_toast("Test", "ToastDesk overlay is working.") {
+                    eprintln!("native toast: {error}");
+                }
+            }
+            Command::Exit => unsafe {
+                let _ = DestroyWindow(self.hwnd);
+            },
+        }
+        self.render();
+    }
+
+    fn handle_events(&mut self) {
+        for event in model::take_events() {
+            match event {
+                Event::Push { toast, play_sound } => self.push(toast, play_sound),
+                Event::Remove(id) => self.remove(&id),
+                Event::Access(access) => {
+                    self.access = access;
+                    tray::set_tooltip(self.hwnd, access.tooltip());
+                }
+                Event::AccessRequest { force, reply } => {
+                    let _ = reply.send(read_or_request_access(force));
+                }
+                Event::Launch => self.show_launch(),
+            }
+        }
+    }
+
+    /// Native toast first, then an overlay card only when capture will not show one itself (as v2).
+    fn show_launch(&mut self) {
+        if !self.settings.show_launch_toast {
+            return;
+        }
+        const TITLE: &str = "ToastDesk";
+        const BODY: &str = "ToastDesk has started.";
+        if let Err(error) = platform::show_native_toast(TITLE, BODY) {
+            eprintln!("launch toast: {error}");
+        }
+        let capture_will_display = self.settings.windows_capture && self.access == CaptureAccess::Allowed;
+        if !capture_will_display {
+            self.push(Toast::new("launch", TITLE, BODY), true);
+        }
+    }
+
+    /// Removes cards whose duration has passed. Infinite cards are never removed.
+    fn expire(&mut self) {
+        let Some(limit) = self.settings.card_duration.millis() else {
+            return;
+        };
+        let limit = Duration::from_millis(limit);
+        let before = self.toasts.len();
+        self.toasts.retain(|toast| toast.created.elapsed() < limit);
+        if self.toasts.len() != before {
+            self.render();
+        }
+    }
+}
+
+unsafe extern "system" fn window_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
+    match msg {
+        WM_APP_EVENTS => {
+            with_app(|app| app.handle_events());
+            LRESULT(0)
+        }
+        WM_APP_TRAY => {
+            let mouse = (lparam.0 & 0xFFFF) as u32;
+            if mouse == WM_RBUTTONUP {
+                let settings = with_app(|app| app.settings.clone());
+                if let Some(settings) = settings {
+                    if let Some(command) = tray::show_menu(hwnd, &settings) {
+                        if command == Command::Exit {
+                            let _ = DestroyWindow(hwnd);
+                        } else {
+                            with_app(|app| app.handle_command(command));
+                        }
+                    }
+                }
+            }
+            LRESULT(0)
+        }
+        WM_LBUTTONUP => {
+            let x = (lparam.0 & 0xFFFF) as i16 as i32;
+            let y = ((lparam.0 >> 16) & 0xFFFF) as i16 as i32;
+            with_app(|app| {
+                if let Some(hit) = app.overlay.hit_test(x, y) {
+                    app.handle_hit(hit);
+                }
+            });
+            LRESULT(0)
+        }
+        WM_TIMER if wparam.0 == TIMER_EXPIRE => {
+            with_app(|app| app.expire());
+            LRESULT(0)
+        }
+        WM_DESTROY => {
+            tray::remove(hwnd);
+            PostQuitMessage(0);
+            LRESULT(0)
+        }
+        _ => DefWindowProcW(hwnd, msg, wparam, lparam),
+    }
+}
+
+fn start_launch_timer() {
+    std::thread::spawn(|| {
+        let deadline = Instant::now() + LAUNCH_WAIT;
+        while Instant::now() < deadline && !CAPTURE_READY.load(Ordering::SeqCst) {
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        std::thread::sleep(Duration::from_millis(150));
+        model::post_event(Event::Launch);
+    });
+}
+
+unsafe fn create_window() -> windows::core::Result<HWND> {
+    let instance = GetModuleHandleW(None)?;
+    let class_name = w!("ToastDeskOverlay");
+    let class = WNDCLASSEXW {
+        cbSize: size_of::<WNDCLASSEXW>() as u32,
+        lpfnWndProc: Some(window_proc),
+        hInstance: instance.into(),
+        lpszClassName: class_name,
+        ..Default::default()
+    };
+    RegisterClassExW(&class);
+    CreateWindowExW(
+        WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_TOPMOST | WS_EX_NOACTIVATE,
+        class_name,
+        w!("ToastDesk"),
+        WS_POPUP,
+        0,
+        0,
+        1,
+        1,
+        None,
+        None,
+        Some(instance.into()),
+        None,
+    )
+}
+
+fn run() -> windows::core::Result<()> {
+    unsafe {
+        let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    }
+    platform::set_process_identity();
+    if !platform::acquire_single_instance() {
+        return Ok(());
+    }
+
+    let settings = load_settings();
+    let _ = save_settings(&settings);
+    platform::apply_priority(settings.high_priority);
+    platform::apply_startup(settings.launch_on_startup);
+    CAPTURE_ENABLED.store(settings.windows_capture, Ordering::SeqCst);
+
+    let hwnd = unsafe { create_window()? };
+    MAIN_HWND.store(hwnd.0 as isize, Ordering::SeqCst);
+    let overlay = Overlay::new(hwnd)?;
+    if let Err(error) = tray::add(hwnd, "ToastDesk") {
+        eprintln!("tray: {error}");
+    }
+
+    let mut app = App {
+        hwnd,
+        settings,
+        toasts: Vec::new(),
+        overlay,
+        access: CaptureAccess::Disabled,
+    };
+    app.sync_debug_toast();
+    APP.with(|cell| *cell.borrow_mut() = Some(app));
+
+    capture::start();
+    start_launch_timer();
+    unsafe {
+        SetTimer(Some(hwnd), TIMER_EXPIRE, 1000, None);
+    }
+
+    let mut message = MSG::default();
+    unsafe {
+        while GetMessageW(&mut message, None, 0, 0).as_bool() {
+            let _ = TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
+    }
+    APP.with(|cell| cell.borrow_mut().take());
+    Ok(())
+}
+
+fn main() {
+    if let Err(error) = run() {
+        eprintln!("ToastDesk failed: {error}");
+        std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use settings::{CardDuration, OverlayPlacement};
+
+    #[test]
+    fn default_duration_is_infinite() {
+        assert_eq!(AppSettings::default().card_duration, CardDuration::Infinite);
+        assert_eq!(AppSettings::default().overlay_placement, OverlayPlacement::TopRight);
+    }
+}

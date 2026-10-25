@@ -13,3 +13,6 @@ dist-release/
 .DS_Store
 Thumbs.db
 artifacts/
+
+# v3 native build output
+native/target/
