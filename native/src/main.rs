@@ -201,6 +201,11 @@ impl App {
                 // always displayed by Windows, so it cannot be used to check the overlay.
                 self.push(Toast::new("test", "Test", "ToastDesk overlay is working."), false);
             }
+            Command::TestLongToast => {
+                // Long title (English and Thai) to check the single-line title with ellipsis.
+                let title = "This is a very long toast title to check that it is trimmed with an ellipsis, not wrapped onto a second line — ทดสอบหัวข้อยาวมากเพื่อดูว่าตัดด้วย ... ได้หรือไม่";
+                self.push(Toast::new("test-long", title, "Title is one line; this body checks the two-line limit."), false);
+            }
             Command::Exit => unsafe {
                 let _ = DestroyWindow(self.hwnd);
             },

@@ -188,7 +188,7 @@ mod windows_impl {
         DWriteCreateFactory, IDWriteFactory, IDWriteTextFormat, IDWriteTextLayout,
         DWRITE_FACTORY_TYPE_SHARED, DWRITE_FONT_STRETCH_NORMAL, DWRITE_FONT_STYLE_NORMAL,
         DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_WEIGHT_NORMAL, DWRITE_TEXT_METRICS,
-        DWRITE_TRIMMING, DWRITE_TRIMMING_GRANULARITY_CHARACTER,
+        DWRITE_TRIMMING, DWRITE_TRIMMING_GRANULARITY_CHARACTER, DWRITE_WORD_WRAPPING_NO_WRAP,
     };
     use windows::Win32::Graphics::Dxgi::Common::DXGI_FORMAT_B8G8R8A8_UNORM;
     use windows::Win32::Graphics::Gdi::{
@@ -322,9 +322,26 @@ mod windows_impl {
             Ok(layout)
         }
 
+        /// Title layout capped at TITLE_LINES: no wrapping, and an ellipsis when the text is too wide.
+        fn title_layout(&self, text: &str, width: f32) -> windows::core::Result<IDWriteTextLayout> {
+            let layout = self.layout(text, &self.title_format, width)?;
+            unsafe {
+                layout.SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP)?;
+                layout.SetMaxHeight(line_height(TITLE_FONT_SIZE) * TITLE_LINES)?;
+                let ellipsis = self.dwrite.CreateEllipsisTrimmingSign(&self.title_format)?;
+                let trimming = DWRITE_TRIMMING {
+                    granularity: DWRITE_TRIMMING_GRANULARITY_CHARACTER,
+                    delimiter: 0,
+                    delimiterCount: 0,
+                };
+                layout.SetTrimming(&trimming, &ellipsis)?;
+            }
+            Ok(layout)
+        }
+
         fn measure(&self, toast: &Toast) -> windows::core::Result<CardSize> {
             let text_width = (OVERLAY_WIDTH - PAD * 2 - CARD_PAD * 2 - CLOSE_SIZE) as f32;
-            let title = self.layout(&title_text(toast), &self.title_format, text_width)?;
+            let title = self.title_layout(&title_text(toast), text_width)?;
             let title_h = metrics(&title)?.height.min(line_height(TITLE_FONT_SIZE) * TITLE_LINES);
             let body_h = if toast.body.is_empty() {
                 0.0
@@ -472,7 +489,7 @@ mod windows_impl {
                 let indent = if has_icon { ICON_SIZE + ICON_GAP } else { 0 };
                 let text_left = rect.left as f32 + CARD_PAD as f32 + indent as f32;
                 let text_width = (rect.width - CARD_PAD * 2 - CLOSE_SIZE - indent) as f32;
-                let title = self.layout(&title_text(toast), &self.title_format, text_width)?;
+                let title = self.title_layout(&title_text(toast), text_width)?;
                 let title_top = rect.top as f32 + CARD_PAD as f32;
                 unsafe {
                     self.target.DrawTextLayout(

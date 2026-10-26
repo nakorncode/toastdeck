@@ -33,6 +33,7 @@ pub const ID_CAPTURE_RETRY: u32 = 161;
 pub const ID_DEBUG: u32 = 162;
 pub const ID_TEST_TOAST: u32 = 163;
 pub const ID_EXIT: u32 = 164;
+pub const ID_TEST_LONG_TOAST: u32 = 165;
 
 /// What the user picked from the tray menu.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -49,6 +50,7 @@ pub enum Command {
     CaptureRetry,
     Debug,
     TestToast,
+    TestLongToast,
     Exit,
 }
 
@@ -65,6 +67,7 @@ pub fn command_for(id: u32) -> Option<Command> {
         ID_CAPTURE_RETRY => Some(Command::CaptureRetry),
         ID_DEBUG => Some(Command::Debug),
         ID_TEST_TOAST => Some(Command::TestToast),
+        ID_TEST_LONG_TOAST => Some(Command::TestLongToast),
         ID_EXIT => Some(Command::Exit),
         id if (ID_SOUND_PRESET_BASE..ID_SOUND_PRESET_BASE + SOUND_PRESETS.len() as u32).contains(&id) => {
             Some(Command::SoundPreset((id - ID_SOUND_PRESET_BASE) as usize))
@@ -133,6 +136,7 @@ unsafe fn build_menu(settings: &AppSettings) -> windows::core::Result<HMENU> {
     append_item(menu, ID_CAPTURE_RETRY, "Retry notification access", false);
     append_item(menu, ID_DEBUG, "Debug overlay", settings.debug_overlay);
     append_item(menu, ID_TEST_TOAST, "Show test toast", false);
+    append_item(menu, ID_TEST_LONG_TOAST, "Show long-title test toast", false);
     append_item(menu, ID_EXIT, "Exit", false);
     Ok(menu)
 }
