@@ -68,9 +68,17 @@
          form runs its command line verbatim, which silently did nothing here. -->
     <CustomAction Id="RestoreWindowsToasts" FileKey="ToastDeskV3Exe" ExeCommand="--restore-windows-toasts" Execute="deferred" Impersonate="yes" Return="ignore" />
     <CustomAction Id="RemoveAutostart" FileKey="ToastDeskV3Exe" ExeCommand="--remove-autostart" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <!-- No-op when the saved setting is on, which is the normal case, so this is safe on every install. -->
+    <CustomAction Id="EnsureAutostart" FileKey="ToastDeskV3Exe" ExeCommand="--ensure-autostart" Execute="deferred" Impersonate="yes" Return="ignore" />
     <InstallExecuteSequence>
       <Custom Action="RestoreWindowsToasts" Before="RemoveFiles">REMOVE="ALL"</Custom>
-      <Custom Action="RemoveAutostart" Before="RemoveFiles">REMOVE="ALL"</Custom>
+      <!-- NOT UPGRADINGPRODUCTCODE matters: during a major upgrade the old product is removed with
+           REMOVE="ALL" too, and clearing autostart then would delete it on every upgrade and leave
+           the app not starting until the user runs it by hand.
+           A pre.3 (or older) product being upgraded still runs ITS OWN unfixed copy of this action,
+           so the new product re-creates the entries with EnsureAutostart after InstallFiles. -->
+      <Custom Action="RemoveAutostart" Before="RemoveFiles">REMOVE="ALL" AND NOT UPGRADINGPRODUCTCODE</Custom>
+      <Custom Action="EnsureAutostart" After="InstallFiles">NOT REMOVE</Custom>
     </InstallExecuteSequence>
   </Product>
 

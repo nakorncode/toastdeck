@@ -456,6 +456,13 @@ fn run() -> windows::core::Result<()> {
         platform::remove_autostart();
         return Ok(());
     }
+    // Called by the MSI after InstallFiles. A no-op unless the saved setting wants autostart, so a
+    // user who turned it off keeps it off. It exists because an upgrade run by an older product still
+    // executes that product's own remove action, which clears the entries.
+    if std::env::args().any(|arg| arg == "--ensure-autostart") {
+        ensure_autostart_only();
+        return Ok(());
+    }
     if !platform::acquire_single_instance() {
         platform::log("start: another copy is already running, exiting");
         return Ok(());
@@ -525,6 +532,15 @@ mod tests {
     fn default_duration_is_infinite() {
         assert_eq!(AppSettings::default().card_duration, CardDuration::Infinite);
         assert_eq!(AppSettings::default().overlay_placement, OverlayPlacement::TopRight);
+    }
+}
+
+/// Re-creates the autostart entries when the saved setting asks for them, then returns without
+/// starting. Called by the MSI after InstallFiles so an upgrade cannot leave autostart missing.
+fn ensure_autostart_only() {
+    let settings = load_settings();
+    if settings.launch_on_startup {
+        platform::apply_startup(true);
     }
 }
 
