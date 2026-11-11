@@ -32,7 +32,8 @@ Pre-releases use `v3.0.0-pre.N`. Non-pre-releases are not planned until v3 has p
 Same as v2 (see `docs/v3-parity-checklist.md`). Tray: Launch on startup · High priority on startup ·
 Show toast on launch · Hide Windows toast banners · Sound · Position · Duration · Capture Windows notifications · Retry notification access ·
 Debug overlay · Show test toast · Exit. Overlay appears only when a toast exists or debug is on.
-The overlay also has a "Dismiss all" row, which clears captured cards only.
+The overlay also has a "Dismiss all" row, which clears every card the user can see except the two
+status cards (debug bounds and capture denied).
 
 ## Verification
 
@@ -40,4 +41,6 @@ The overlay also has a "Dismiss all" row, which clears captured cards only.
 cargo test --manifest-path .\native\Cargo.toml
 cargo build --release --manifest-path .\native\Cargo.toml
 powershell -ExecutionPolicy Bypass -File .\scripts\build-installers.ps1 -ProductVersion 3.0.0-pre.1
+# Drives the real overlay window and clicks "Dismiss all"; exits 0 when the card clears.
+powershell -ExecutionPolicy Bypass -File .\scripts\verify-dismiss-all.ps1
 ```

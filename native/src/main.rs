@@ -164,8 +164,9 @@ impl App {
                 }
             }
             Hit::DismissAll => {
-                self.toasts.retain(|toast| !toast.captured);
-                self.render();
+                if model::retain_after_dismiss_all(&mut self.toasts) {
+                    self.render();
+                }
             }
         }
     }

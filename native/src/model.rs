@@ -36,6 +36,25 @@ impl Toast {
             created: Instant::now(),
         }
     }
+
+    /// True when the "Dismiss all" row clears this card.
+    ///
+    /// Dismiss all clears everything the user sees, not only captured notifications: the launch card
+    /// and the test cards are ordinary cards, and leaving them behind made the button look broken
+    /// when they were the only cards on screen. Two cards stay on purpose:
+    /// - the debug bounds card, because it mirrors the Debug tray toggle and only disappears with it;
+    /// - the capture-denied notice, because it explains how to re-enable capture.
+    pub fn cleared_by_dismiss_all(&self) -> bool {
+        !matches!(self.id.as_str(), DEBUG_TOAST_ID | CAPTURE_DENIED_ID)
+    }
+}
+
+/// Drops the cards that "Dismiss all" clears, keeping the ones it must not touch. Shared by the
+/// window procedure and the unit tests so the tested rule is the rule that runs.
+pub fn retain_after_dismiss_all(toasts: &mut Vec<Toast>) -> bool {
+    let before = toasts.len();
+    toasts.retain(|toast| !toast.cleared_by_dismiss_all());
+    toasts.len() != before
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -115,5 +134,57 @@ mod tests {
         let toast = Toast::new("launch", "ToastDesk", "started");
         assert!(!toast.captured);
         assert!(toast.source_aumid.is_none());
+    }
+
+    /// The reported bug: the "ToastDesk has started" card stayed on screen when Dismiss all was
+    /// pressed, so the button looked broken when it was the only card visible.
+    #[test]
+    fn dismiss_all_clears_the_launch_card() {
+        assert!(Toast::new("launch", "ToastDesk", "ToastDesk has started.").cleared_by_dismiss_all());
+    }
+
+    #[test]
+    fn dismiss_all_clears_captured_and_test_cards() {
+        let mut captured = Toast::new("notification-1", "Mail", "One new message");
+        captured.captured = true;
+        assert!(captured.cleared_by_dismiss_all());
+        assert!(Toast::new("test", "Test", "ToastDesk overlay is working.").cleared_by_dismiss_all());
+        assert!(Toast::new("test-long", "Long", "Title is one line.").cleared_by_dismiss_all());
+    }
+
+    /// These two are status cards, not notifications, so they outlive Dismiss all.
+    #[test]
+    fn dismiss_all_keeps_the_debug_and_capture_denied_cards() {
+        assert!(!Toast::new(DEBUG_TOAST_ID, "Debug", "Overlay bounds are visible.").cleared_by_dismiss_all());
+        assert!(!Toast::new(CAPTURE_DENIED_ID, "ToastDesk", "Notification access is off.").cleared_by_dismiss_all());
+    }
+
+    /// Drives the same helper the window procedure uses, so the test cannot go green while the real
+    /// call site stays wrong.
+    #[test]
+    fn dismiss_all_on_a_lone_launch_card_empties_the_stack() {
+        let mut toasts = vec![Toast::new("launch", "ToastDesk", "ToastDesk has started.")];
+        assert!(retain_after_dismiss_all(&mut toasts));
+        assert!(toasts.is_empty(), "the launch card must disappear");
+    }
+
+    #[test]
+    fn dismiss_all_keeps_status_cards_and_drops_the_rest() {
+        let mut toasts = vec![
+            Toast::new("launch", "ToastDesk", "ToastDesk has started."),
+            Toast::new(DEBUG_TOAST_ID, "Debug", "Overlay bounds are visible."),
+            Toast::new(CAPTURE_DENIED_ID, "ToastDesk", "Notification access is off."),
+            Toast::new("notification-7", "Mail", "One new message"),
+        ];
+        assert!(retain_after_dismiss_all(&mut toasts));
+        let ids: Vec<&str> = toasts.iter().map(|toast| toast.id.as_str()).collect();
+        assert_eq!(ids, vec![DEBUG_TOAST_ID, CAPTURE_DENIED_ID]);
+    }
+
+    #[test]
+    fn dismiss_all_with_only_status_cards_reports_no_change() {
+        let mut toasts = vec![Toast::new(DEBUG_TOAST_ID, "Debug", "Overlay bounds are visible.")];
+        assert!(!retain_after_dismiss_all(&mut toasts));
+        assert_eq!(toasts.len(), 1);
     }
 }

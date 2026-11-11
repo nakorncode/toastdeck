@@ -14,7 +14,7 @@ Status: **unit** = covered by `cargo test` in `native/`; **manual** = check by e
 | Appear and disappear instantly | Sonner animation | No animation (approved, Q2) | manual |
 | Click card: open source app and dismiss | `open_toast` | `App::handle_hit(Hit::Card)` | manual |
 | Click ×: dismiss one card | Sonner close button | `Hit::Close` | manual |
-| Dismiss all: captured cards only, button at the top | (new in v3, Q13/Q16) | `Hit::DismissAll` keeps debug and capture-denied cards | manual |
+| Dismiss all: clears every card the user sees, button at the top | (new in v3, Q13/Q16) | `model::retain_after_dismiss_all` keeps only the debug and capture-denied status cards | unit + `scripts/verify-dismiss-all.ps1` |
 | Duration 10 s / 30 s / 1 min / infinite | `cardDuration` | `App::expire` | manual |
 | Sound on capture and launch, 8 AOSP presets | `sound.rs` | `sound.rs` (PlaySoundW, same files) | manual |
 | Capture Windows notifications | `capture.rs` | `capture.rs` ported (same polling and text rules) | manual |
