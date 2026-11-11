@@ -10,14 +10,16 @@
            Manufacturer="NakornCode"
            UpgradeCode="6F0C2D4A-3B1E-4E8F-9A55-7D2C1B0E4A13">
     <Package InstallerVersion="200" Compressed="yes" InstallScope="perUser" Description="ToastDesk v3 installer" />
-    <MajorUpgrade DowngradeErrorMessage="A newer version of ToastDesk v3 is already installed." />
+    <!-- Pre-releases share the numeric version 3.0.0 (MSI allows only major.minor.build), so a plain
+         MajorUpgrade would refuse to replace pre.1 with pre.2/pre.3 and leave two products behind.
+         AllowSameVersionUpgrades makes the upgrade work for those builds. -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of ToastDesk v3 is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <Feature Id="Main" Title="ToastDesk v3" Level="1">
       <ComponentGroupRef Id="AppFiles" />
       <ComponentGroupRef Id="SoundFiles" />
       <ComponentRef Id="StartMenuEntries" />
-      <ComponentRef Id="StartupEntry" />
     </Feature>
 
     <Directory Id="TARGETDIR" Name="SourceDir">
@@ -48,13 +50,12 @@
       </Component>
     </DirectoryRef>
 
-    <!-- The app keeps this value in sync with the tray setting. Removed on uninstall. -->
-    <DirectoryRef Id="INSTALLFOLDER">
-      <Component Id="StartupEntry" Guid="2F0F73C7-46C8-4190-8BF9-51AFDA58FE6E">
-        <RegistryValue Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="ToastDesk.v3" Type="string" Value="&quot;[INSTALLFOLDER]ToastDeskV3.exe&quot;" KeyPath="yes" />
-      </Component>
-    </DirectoryRef>
-
+    <!-- The app owns both autostart entries and keeps them in sync with the tray setting.
+         They are NOT installed as MSI components: a registry value under the Run key cannot be a
+         per-user component key path without letting MSI repair/removal delete it, which is how the
+         entry can disappear while nothing appears to be wrong. Autostart is created by the app on
+         first launch and by the NSIS installer, and removed by the app's own "Launch on startup"
+         switch and by the uninstall sequence below. -->
     <DirectoryRef Id="AppMenuFolder">
       <Component Id="StartMenuEntries" Guid="E4F169DB-0454-43F0-9F07-70DD3F5E81F3">
         <Shortcut Id="AppShortcut" Name="ToastDesk v3" Target="[INSTALLFOLDER]ToastDeskV3.exe" WorkingDirectory="INSTALLFOLDER" />
@@ -62,10 +63,14 @@
         <RegistryValue Root="HKCU" Key="Software\NakornCode\ToastDesk.v3\Components" Name="StartMenuEntries" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </DirectoryRef>
-    <!-- Put the Windows banner setting back before files are removed or replaced. -->
-    <CustomAction Id="RestoreWindowsToasts" Directory="INSTALLFOLDER" ExeCommand="--restore-windows-toasts" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <!-- Put the Windows banner setting back and clear autostart before files are removed or replaced.
+         FileKey form (CA type 18) so MSI launches ToastDeskV3.exe itself: the Directory + ExeCommand
+         form runs its command line verbatim, which silently did nothing here. -->
+    <CustomAction Id="RestoreWindowsToasts" FileKey="ToastDeskV3Exe" ExeCommand="--restore-windows-toasts" Execute="deferred" Impersonate="yes" Return="ignore" />
+    <CustomAction Id="RemoveAutostart" FileKey="ToastDeskV3Exe" ExeCommand="--remove-autostart" Execute="deferred" Impersonate="yes" Return="ignore" />
     <InstallExecuteSequence>
       <Custom Action="RestoreWindowsToasts" Before="RemoveFiles">REMOVE="ALL"</Custom>
+      <Custom Action="RemoveAutostart" Before="RemoveFiles">REMOVE="ALL"</Custom>
     </InstallExecuteSequence>
   </Product>
 

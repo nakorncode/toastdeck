@@ -51,6 +51,12 @@ Section "Install"
   CreateShortCut "$SMPROGRAMS\${PRODUCT}\${PRODUCT}.lnk" "$INSTDIR\${EXE}"
   CreateShortCut "$SMPROGRAMS\${PRODUCT}\Uninstall ${PRODUCT}.lnk" "$INSTDIR\Uninstall.exe"
 
+  ; Both autostart entries, matching what the app writes itself. Two independent paths mean a missing
+  ; registry value cannot make the app silently stop starting: the Startup shortcut still fires, and
+  ; that start repairs the registry value.
+  WriteRegStr HKCU "${RUN_KEY}" "${APP_ID}" '"$INSTDIR\${EXE}"'
+  CreateShortCut "$SMSTARTUP\${PRODUCT}.lnk" "$INSTDIR\${EXE}"
+
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayName" "${PRODUCT}"
   WriteRegStr HKCU "${UNINST_KEY}" "DisplayVersion" "${VERSION}"
   WriteRegStr HKCU "${UNINST_KEY}" "Publisher" "NakornCode"
@@ -62,13 +68,16 @@ Section "Install"
 SectionEnd
 
 Section "un.Uninstall"
-  ; Put the Windows banner setting back before the app is stopped.
+  ; Clear autostart (Run value and Startup shortcut) and put the Windows banner setting back,
+  ; before the files are removed.
+  nsExec::Exec '"$INSTDIR\${EXE}" --remove-autostart'
   nsExec::Exec '"$INSTDIR\${EXE}" --restore-windows-toasts'
   nsExec::Exec 'taskkill /F /IM ${EXE} /T'
   Sleep 1500
 
-  ; Startup entry written by the app. Settings in %LOCALAPPDATA%\ToastDesk.v3 are kept.
+  ; Settings in %LOCALAPPDATA%\ToastDesk.v3 are kept.
   DeleteRegValue HKCU "${RUN_KEY}" "${APP_ID}"
+  Delete "$SMSTARTUP\${PRODUCT}.lnk"
 
   Delete "$INSTDIR\${EXE}"
   Delete "$INSTDIR\AOSP-LICENSE.md"

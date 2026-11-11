@@ -77,7 +77,10 @@ $obj = Join-Path $stage "toastdesk-v3.wixobj"
 $msi = Join-Path $out "ToastDesk-v3-$ProductVersion-Setup-win-x64.msi"
 & $candle -nologo "-dVersion=$numeric" "-dStageDir=$stage" -out $obj (Join-Path $packaging "toastdesk-v3.wxs")
 if ($LASTEXITCODE -ne 0) { throw "candle failed" }
-& $light -nologo -sice:ICE91 -out $msi $obj
+# ICE61 warns that the upgrade does not exclude the same version. That is deliberate: pre-releases
+# share the numeric version (MSI only allows major.minor.build), so AllowSameVersionUpgrades is what
+# lets pre.1 be replaced by pre.2/pre.3. ICE91 is the per-user install location warning.
+& $light -nologo -sice:ICE61 -sice:ICE91 -out $msi $obj
 if ($LASTEXITCODE -ne 0) { throw "light failed" }
 
 Get-ChildItem $out | ForEach-Object { "{0}  {1:N1} KB" -f $_.Name, ($_.Length / 1KB) }

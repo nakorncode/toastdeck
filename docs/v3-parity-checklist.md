@@ -24,7 +24,7 @@ Status: **unit** = covered by `cargo test` in `native/`; **manual** = check by e
 | Launch card after capture is ready | `schedule_launch_toast` | `start_launch_timer`, `App::show_launch` (overlay card) | manual |
 | Tray menu items and order | `tray.rs` | `tray.rs` (same labels, same order) | manual |
 | Left-click tray does nothing | yes | `show_menu` only on right-click | manual |
-| Launch on startup (Run key) | `ToastDesk.v2` | `ToastDesk.v3` | manual |
+| Launch on startup | `ToastDesk.v2` | Two independent entries: Run key `ToastDesk.v3` **and** a Startup-folder shortcut. The app writes both and logs what it found | manual |
 | Hide Windows toast banners while running | not in v2 | **Not working.** Tray option is kept but does not hide banners (see Known issues) | manual |
 | High priority with Above Normal fallback | `apply_priority` | `platform::apply_priority` | manual |
 | Settings file and first-run copy from v2 | v2 path | `ToastDesk.v3\settings.json`, copied once (Q19) | unit + manual |
@@ -44,6 +44,22 @@ Status: **unit** = covered by `cargo test` in `native/`; **manual** = check by e
 - Hover: the card gets a soft glow and the pointer shows a hand over clickable areas (cards, ×, Dismiss all).
   The × is larger and gets a round highlight on hover.
 - Capture access is requested on the UI thread, as in v2, through an event and a reply channel.
+
+## Launch on startup
+
+Autostart is written twice, on purpose, by `platform::apply_startup`:
+
+1. `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` value `ToastDesk.v3`
+2. A shortcut `ToastDesk v3.lnk` in the user's Startup folder
+
+If one is removed, the other still starts the app, and that start puts the missing one back. Both
+installers also create them, and both uninstallers clear them through `ToastDeskV3.exe --remove-autostart`.
+The MSI must never install the Run value as a component key path: MSI then owns the value and can delete
+it on repair or upgrade without anything else changing.
+
+Every start begins with a `start: pid ... parent ...` line in `%LOCALAPPDATA%\ToastDesk.v3\app.log`,
+and `apply_startup` logs `startup: run=... shortcut=...`. A boot with no new line means Explorer never
+launched the app; a line with `another copy is already running` means it did.
 
 ## Known issues (pre-release)
 

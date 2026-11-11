@@ -376,7 +376,69 @@ unsafe fn create_window() -> windows::core::Result<HWND> {
     )
 }
 
+/// Describes how this process was started, so `app.log` shows whether autostart actually fired.
+/// The parent of a Startup entry launched by Explorer is `explorer.exe`, and so is a manual launch
+/// from the Start menu, so the parent alone does not decide it. What matters is that a line exists
+/// at all: a start with no line never happened.
+fn autostart_origin() -> String {
+    use windows::Win32::Foundation::{CloseHandle, HANDLE};
+    use windows::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS,
+    };
+
+    let mut parent_name = String::from("unknown");
+    let mut parent_pid = 0u32;
+    unsafe {
+        let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else {
+            return format!(" parent {parent_name}");
+        };
+        let mut entry = PROCESSENTRY32W {
+            dwSize: size_of::<PROCESSENTRY32W>() as u32,
+            ..Default::default()
+        };
+        if Process32FirstW(snapshot, &mut entry).is_ok() {
+            loop {
+                if entry.th32ProcessID == std::process::id() {
+                    parent_pid = entry.th32ParentProcessID;
+                    break;
+                }
+                if Process32NextW(snapshot, &mut entry).is_err() {
+                    break;
+                }
+            }
+        }
+        let _ = CloseHandle(HANDLE(snapshot.0));
+        if parent_pid != 0 {
+            let mut entry = PROCESSENTRY32W {
+                dwSize: size_of::<PROCESSENTRY32W>() as u32,
+                ..Default::default()
+            };
+            let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else {
+                return format!(" parent pid {parent_pid}");
+            };
+            if Process32FirstW(snapshot, &mut entry).is_ok() {
+                loop {
+                    if entry.th32ProcessID == parent_pid {
+                        let len = entry.szExeFile.iter().position(|&c| c == 0).unwrap_or(0);
+                        parent_name = String::from_utf16_lossy(&entry.szExeFile[..len]);
+                        break;
+                    }
+                    if Process32NextW(snapshot, &mut entry).is_err() {
+                        break;
+                    }
+                }
+            }
+            let _ = CloseHandle(HANDLE(snapshot.0));
+        }
+    }
+    format!(" parent {parent_name} ({parent_pid})")
+}
+
 fn run() -> windows::core::Result<()> {
+    // Logged before anything can return early, so a start that ends in silence is still visible.
+    // Without this line a skipped autostart and an early exit look identical in app.log.
+    platform::log(&format!("start: pid {}{}", std::process::id(), autostart_origin()));
+
     unsafe {
         let _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     }
@@ -389,7 +451,13 @@ fn run() -> windows::core::Result<()> {
         restore_windows_toasts_only();
         return Ok(());
     }
+    // Called by the uninstallers, which must clear autostart even when the saved setting says it is on.
+    if std::env::args().any(|arg| arg == "--remove-autostart") {
+        platform::remove_autostart();
+        return Ok(());
+    }
     if !platform::acquire_single_instance() {
+        platform::log("start: another copy is already running, exiting");
         return Ok(());
     }
 
